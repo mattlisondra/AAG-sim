@@ -104,6 +104,11 @@ uv run python sim_eval/scripts/download_assets.py
 cd ../..
 ```
 
+The simulator must run in that upstream environment because it contains Torch,
+ManiSkill, and SAPIEN. `scripts/run_sim.sh` selects it automatically and
+overlays this bridge package; the lightweight root environment remains useful
+for `doctor`, camera-profile inspection, and benchmark inspection.
+
 ### 3. Start or reuse the inference server
 
 On the GPU server, from the upstream repository:
@@ -124,7 +129,7 @@ aag-yam doctor \
 ### 4. Run the official zero-shot simulation smoke test
 
 ```bash
-aag-yam eval-official \
+bash scripts/run_sim.sh \
   --server-url http://127.0.0.1:8202/act \
   --camera-profile molmoact2-reference \
   --env-id BimanualYAMPutEverythingInBox-v1 \
@@ -155,7 +160,7 @@ aag-yam camera-profiles
 Example:
 
 ```bash
-aag-yam eval-official \
+bash scripts/run_sim.sh \
   --server-url http://gpu-host:8202/act \
   --camera-profile d435i-all-nominal \
   --episodes 3

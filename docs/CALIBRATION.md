@@ -27,10 +27,10 @@ the D435i top camera and keeps the reference wrist mounts. Use it for an A/B
 domain-shift experiment:
 
 ```bash
-aag-yam eval-official --server-url HOST:8202 \
+bash scripts/run_sim.sh --server-url HOST:8202 \
   --camera-profile molmoact2-reference --episodes 10
 
-aag-yam eval-official --server-url HOST:8202 \
+bash scripts/run_sim.sh --server-url HOST:8202 \
   --camera-profile d435i-all-nominal --episodes 10
 ```
 
