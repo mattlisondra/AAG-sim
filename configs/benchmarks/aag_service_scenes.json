@@ -1,0 +1,100 @@
+{
+  "name": "AAG service manipulation benchmark",
+  "version": "0.1.0",
+  "embodiment": "bimanual YAM",
+  "policy": "allenai/MolmoAct2-BimanualYAM",
+  "camera_roles": ["top_cam", "left_cam", "right_cam"],
+  "notes": [
+    "Use 6-9 visible objects and 3-5 command-relevant objects in initial trials.",
+    "Keep objects large, rigid, and grasp-tolerant before adding small, deformable, reflective, or transparent objects.",
+    "The broad instruction measures semantic resolution plus control; the resolved instruction isolates motor-policy performance.",
+    "Run both compound-command and one-subtask-at-a-time conditions."
+  ],
+  "scenarios": [
+    {
+      "id": "dining-table-cleanup",
+      "difficulty": 1,
+      "scene": "Dining-table cleanup",
+      "context": "Post-meal table",
+      "status": "specification",
+      "objects": ["red cup", "blue cup", "white cup", "white plate", "blue plate", "bowl", "bottle", "napkin box", "bus bin", "dish tray"],
+      "recommended_initial_subset": ["red cup", "blue cup", "white cup", "white plate", "bowl", "bus bin", "dish tray"],
+      "broad_instruction": "Clean up the dining table.",
+      "resolved_instruction": "Place the red and blue cups in the bus bin, then place the white plate in the dish tray.",
+      "subtasks": [
+        {"verb": "place", "object": "red cup", "relation": "in", "target": "bus bin"},
+        {"verb": "place", "object": "blue cup", "relation": "in", "target": "bus bin"},
+        {"verb": "place", "object": "white plate", "relation": "in", "target": "dish tray"}
+      ],
+      "focus": ["underspecified category", "same destination", "sequence"]
+    },
+    {
+      "id": "kitchen-dish-sorting",
+      "difficulty": 2,
+      "scene": "Kitchen dish sorting",
+      "context": "Counter after meal preparation",
+      "status": "specification",
+      "objects": ["blue bowl", "white bowl", "red cup", "green cup", "plate", "bottle", "food container", "dish rack", "tray"],
+      "recommended_initial_subset": ["blue bowl", "white bowl", "red cup", "green cup", "plate", "dish rack", "tray"],
+      "broad_instruction": "Put away the dishes.",
+      "resolved_instruction": "Place both bowls in the dish rack, then put the cup beside the plate in the tray.",
+      "subtasks": [
+        {"verb": "place", "object": "blue bowl", "relation": "in", "target": "dish rack"},
+        {"verb": "place", "object": "white bowl", "relation": "in", "target": "dish rack"},
+        {"verb": "place", "object": "selected cup", "relation": "beside plate in", "target": "tray"}
+      ],
+      "focus": ["category grounding", "relation grounding", "sequence"]
+    },
+    {
+      "id": "bedside-assistance",
+      "difficulty": 3,
+      "scene": "Bedside assistance",
+      "context": "Hospital or home bedside table",
+      "status": "specification",
+      "objects": ["water bottle", "mug", "tissue box", "snack container", "mock medicine bottle", "small basket"],
+      "recommended_initial_subset": ["water bottle", "mug", "tissue box", "snack container", "mock medicine bottle", "small basket"],
+      "broad_instruction": "Clear some space on the bedside table.",
+      "resolved_instruction": "Move the mug and snack container into the basket, then place the water bottle beside the tissue box.",
+      "subtasks": [
+        {"verb": "move", "object": "mug", "relation": "in", "target": "small basket"},
+        {"verb": "move", "object": "snack container", "relation": "in", "target": "small basket"},
+        {"verb": "place", "object": "water bottle", "relation": "beside", "target": "tissue box"}
+      ],
+      "focus": ["assistive context", "large objects", "spatial relation"]
+    },
+    {
+      "id": "living-room-tidying",
+      "difficulty": 4,
+      "scene": "Living-room tidying",
+      "context": "Coffee table or side table",
+      "status": "specification",
+      "objects": ["toy", "tissue box", "cup", "book", "remote-sized object", "storage bin", "tray"],
+      "recommended_initial_subset": ["toy", "tissue box", "cup", "book", "storage bin", "tray"],
+      "broad_instruction": "Tidy up the living room.",
+      "resolved_instruction": "Put the toy in the storage bin, place the cup in the tray, and move the book beside the tissue box.",
+      "subtasks": [
+        {"verb": "put", "object": "toy", "relation": "in", "target": "storage bin"},
+        {"verb": "place", "object": "cup", "relation": "in", "target": "tray"},
+        {"verb": "move", "object": "book", "relation": "beside", "target": "tissue box"}
+      ],
+      "focus": ["affordance diversity", "multiple destinations", "sequence"]
+    },
+    {
+      "id": "cafeteria-service-station",
+      "difficulty": 5,
+      "scene": "Cafeteria/service station",
+      "context": "Cluttered serving counter",
+      "status": "specification",
+      "objects": ["bottle 1", "bottle 2", "cup 1", "cup 2", "cup 3", "bowl", "rigid food container", "recycling bin", "serving tray"],
+      "recommended_initial_subset": ["bottle 1", "bottle 2", "cup 1", "cup 2", "cup 3", "bowl", "rigid food container", "recycling bin", "serving tray"],
+      "broad_instruction": "Organize the serving area.",
+      "resolved_instruction": "Put both bottles in the recycling bin, move the cups to the serving tray, and place the bowl beside the food container.",
+      "subtasks": [
+        {"verb": "put", "object": "both bottles", "relation": "in", "target": "recycling bin"},
+        {"verb": "move", "object": "three cups", "relation": "on", "target": "serving tray"},
+        {"verb": "place", "object": "bowl", "relation": "beside", "target": "rigid food container"}
+      ],
+      "focus": ["several objects", "several destinations", "clutter", "long horizon"]
+    }
+  ]
+}

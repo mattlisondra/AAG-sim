@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aag-molmoact2-yam-sim"
+version = "0.1.0"
+description = "Camera-aware AAG benchmark bridge for MolmoAct2-BimanualYAM"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AAG Sim contributors" }]
+dependencies = [
+  "json-numpy>=2.1.0",
+  "numpy>=1.26,<3",
+  "requests>=2.32",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.9",
+]
+
+[project.scripts]
+aag-yam = "aag_yam_sim.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q -p no:ament_copyright -p no:ament_lint -p no:ament_flake8 -p no:launch_testing -p no:ament_xmllint -p no:ament_pep257 -p no:launch_ros"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["third_party"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

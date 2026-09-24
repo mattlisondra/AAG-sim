@@ -1,0 +1,4 @@
+[submodule "third_party/molmoact2"]
+	path = third_party/molmoact2
+	url = https://github.com/allenai/molmoact2.git
+	ignore = all
