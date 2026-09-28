@@ -180,8 +180,11 @@ is calculated from each camera's factory intrinsics.
 
 The repository includes:
 
-- side-specific, parametric STEP/STL adapter candidates plus separate 20 mm
-  YAM-bracket and 45 mm D435i two-hole fit gauges;
+- one-piece left/right replacement mounts that retain the official bracket's
+  through-holes for attachment to the YAM wrists and add complete D435i screw
+  passages;
+- a parametric carrier generator, reproducible mesh-fusion/checking script,
+  and separate interface gauges;
 - `aag-yam wrist-match-plan` for distance/crop calculation;
 - `scripts/query_realsense_intrinsics.py` for the two physical serial numbers;
 - `scripts/run_d435i_camera_server.py`, which preserves the existing YAM ZMQ
@@ -189,11 +192,13 @@ The repository includes:
 - a nominal simulator profile named `d435i-wrist-d405-match-nominal`.
 
 Read [D435i wrist adapter and view matching](docs/D435I_WRIST_ADAPTER.md) before
-printing. The design has been boolean-checked against the official i2rt YAM
-D405 bracket STL supplied through MakerWorld, including an approximate D435i
-housing envelope. The official bracket's source license is CC BY-NC-SA 4.0, so
-that reference STL is linked but not redistributed. Print the two small gauges
-and perform the documented stationary physical fit/collision check first.
+printing. The preferred full mount directly incorporates the supplied official
+i2rt YAM D405 bracket geometry, retains its original 40 mm-pitch arm passages,
+and is validated as one watertight component with two open D435i passages. The
+unmodified reference STL is not redistributed. The derived full-mount meshes
+are clearly isolated under the source model's CC BY-NC-SA 4.0 license. Print
+the small 45 mm gauge and perform the documented stationary physical
+fit/collision check first.
 
 ## Five-scene AAG benchmark
 
@@ -232,4 +237,6 @@ the pinned submodule commit; run `aag-yam doctor` after updating it because
 camera conventions, action adapters, or endpoint schemas may change.
 
 MolmoAct2 is released under Apache-2.0. Code in this integration repository is
-also Apache-2.0 licensed.
+also Apache-2.0 licensed. The STL-derived files under
+`cad/generated/official-bracket-derived` are a documented exception licensed
+CC BY-NC-SA 4.0 to match their source model.

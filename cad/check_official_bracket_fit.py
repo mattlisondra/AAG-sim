@@ -171,13 +171,18 @@ def main() -> int:
             camera_mount_image_up_mm=args.camera_mount_image_up_mm,
         )
         camera.apply_transform(transform)
-        camera_collision = collision_volume(bracket, camera)
+        bracket_camera_collision = collision_volume(bracket, camera)
+        carrier_camera_collision = collision_volume(adapter, camera)
 
         print(
             f"{side}: adapter={plastic_collision:.6f} mm^3, "
-            f"D435i envelope={camera_collision:.6f} mm^3"
+            f"bracket-to-D435i={bracket_camera_collision:.6f} mm^3, "
+            f"carrier-to-D435i={carrier_camera_collision:.6f} mm^3"
         )
-        failed |= max(plastic_collision, camera_collision) > args.tolerance_mm3
+        failed |= (
+            max(plastic_collision, bracket_camera_collision, carrier_camera_collision)
+            > args.tolerance_mm3
+        )
 
     if failed:
         print(f"FAIL: collision exceeds {args.tolerance_mm3:.6f} mm^3 tolerance")

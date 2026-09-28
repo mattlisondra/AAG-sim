@@ -107,6 +107,8 @@ def setback_mount(
     view_down_angle_deg: float = DEFAULT_VIEW_DOWN_ANGLE_DEG,
     camera_mount_image_up_mm: float = DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     insert_diameter_mm: float = 4.6,
+    include_d405_insert_pockets: bool = True,
+    base_overlap_mm: float = 0.0,
 ):
     """Build one mirrored adapter.
 
@@ -118,6 +120,8 @@ def setback_mount(
         raise ValueError("outboard_sign must be -1 or +1")
     if match_distance_mm <= reference_distance_mm:
         raise ValueError("match distance must be farther than the D405 reference distance")
+    if base_overlap_mm < 0.0:
+        raise ValueError("base_overlap_mm must be non-negative")
 
     extra_ray = match_distance_mm - reference_distance_mm
     angle = math.radians(view_down_angle_deg)
@@ -150,13 +154,25 @@ def setback_mount(
     base_width = 44.0
     base_depth = 28.0
     base_thickness = 6.0
-    base = rounded_plate(base_width, base_depth, base_thickness, 4.0)
-    insert_points = [(-D405_M3_PITCH / 2.0, 0.0), (D405_M3_PITCH / 2.0, 0.0)]
-    # Blind pockets open on the existing-bracket contact face (Z=0).
-    base = base.cut(cylinders(insert_points, insert_diameter_mm, -0.1, 5.3))
-    support_x = (-27.0, 41.0)
-    outrigger_center_x = sum(support_x) / 2.0
-    outrigger_width = support_x[1] - support_x[0] + 8.0
+    base = rounded_plate(
+        base_width,
+        base_depth,
+        base_thickness + base_overlap_mm,
+        4.0,
+    ).translate((0.0, 0.0, -base_overlap_mm))
+    if include_d405_insert_pockets:
+        insert_points = [(-D405_M3_PITCH / 2.0, 0.0), (D405_M3_PITCH / 2.0, 0.0)]
+        # Blind pockets open on the existing-bracket contact face (Z=0).
+        base = base.cut(cylinders(insert_points, insert_diameter_mm, -0.1, 5.3))
+    # Put both rails on the side opposite the D435i's long outboard housing.
+    # This clears both the asymmetric YAM bracket (-21..35 mm locally) and the
+    # 90 mm camera body.  Running one rail on each side would pass a rail
+    # through the camera housing after the 49.8 mm optical setback.
+    support_x = (44.0, 56.0) if outboard_sign == -1 else (-42.0, -30.0)
+    outrigger_min_x = min(-base_width / 2.0, support_x[0] - 4.0)
+    outrigger_max_x = max(base_width / 2.0, support_x[1] + 4.0)
+    outrigger_center_x = (outrigger_min_x + outrigger_max_x) / 2.0
+    outrigger_width = outrigger_max_x - outrigger_min_x
     outrigger_y = 5.0
     outrigger = rounded_plate(outrigger_width, 10.0, 6.0, 3.0).translate(
         (outrigger_center_x, outrigger_y, base_thickness)
@@ -176,10 +192,20 @@ def setback_mount(
         rounded_plate(carrier_width, carrier_depth, carrier_thickness, 3.0)
         .translate((carrier_center_x, camera_mount_image_up_mm, carrier_back_z))
     )
-    # A narrow tie reaches both outboard rails without widening the entire
-    # camera-contact surface.
-    carrier_tie = rounded_plate(outrigger_width, 7.0, carrier_thickness, 2.5).translate(
-        (outrigger_center_x, camera_mount_image_up_mm, carrier_back_z)
+    # A narrow side tie reaches both rails while overlapping the main carrier
+    # by 10 mm.  It stays behind, rather than across, the D435i housing.
+    carrier_min_x = carrier_center_x - carrier_width / 2.0
+    carrier_max_x = carrier_center_x + carrier_width / 2.0
+    if outboard_sign == -1:
+        tie_min_x = carrier_max_x - 10.0
+        tie_max_x = support_x[1] + 4.0
+    else:
+        tie_min_x = support_x[0] - 4.0
+        tie_max_x = carrier_min_x + 10.0
+    tie_width = tie_max_x - tie_min_x
+    tie_center_x = (tie_min_x + tie_max_x) / 2.0
+    carrier_tie = rounded_plate(tie_width, 7.0, carrier_thickness, 2.5).translate(
+        (tie_center_x, camera_mount_image_up_mm, carrier_back_z)
     )
     bosses = cylinders(camera_holes, 10.0, carrier_front_z, boss_height)
     carrier = carrier_main.union(carrier_tie).union(bosses)

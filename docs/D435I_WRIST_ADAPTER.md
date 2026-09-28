@@ -13,11 +13,16 @@ narrower. The nominal first-order match in this repository does three things:
 3. crops a nominal 640 × 360 D435i RGB frame to **584 × 360** (28 pixels from
    each side) and resizes it to 640 × 360 before MolmoAct2 sees it.
 
-This is a strong starting geometry, not a promise of pixel-identical images.
-Use the factory intrinsics from both physical D435i serial numbers and perform
-a stationary visual fit before enabling either arm.
+The preferred printable part is now a **one-piece replacement wrist mount**.
+It incorporates the supplied official bracket geometry, preserves its original
+40 mm-pitch through-holes for fastening to the YAM arm, and adds a fused D435i
+carrier with two complete 45 mm-pitch screw passages. No heat-set inserts are
+used in the preferred full mount. This is a strong starting geometry, not a
+promise of pixel-identical images. Use the factory intrinsics from both
+physical D435i serial numbers and perform a stationary visual fit before
+enabling either arm.
 
-![Mirrored left adapter preview](../cad/generated/yam_d435i_left.png)
+![One-piece left replacement mount](../cad/generated/official-bracket-derived/yam_d435i_full_wrist_mount_left.png)
 
 ## Evidence, derivation, and assumptions
 
@@ -55,9 +60,12 @@ wrist-camera mount and crank-shaft gripper. i2rt robotics also publishes the
 The supplied MakerWorld STL was measured directly for this revision. Its
 SHA-256 is
 `c912eb55577ce157fb8b2cc11cb7baf350383baba564007fec4ce0a7b8ac0de2`.
-MakerWorld labels that source model CC BY-NC-SA 4.0, so the reference STL is
-not copied into this Apache-2.0 repository; download it from the publisher when
-running the clearance check.
+MakerWorld labels that source model CC BY-NC-SA 4.0. The unmodified source STL
+is not copied into this repository. The generated full replacement mounts do
+incorporate its geometry and are therefore isolated under
+[`cad/generated/official-bracket-derived`](../cad/generated/official-bracket-derived)
+with attribution and the same CC BY-NC-SA 4.0 license; they are not covered by
+the repository's Apache-2.0 license.
 
 Be careful with one easy-to-misread drawing dimension: **45 mm is the D435i
 M3-hole pitch**. The camera's 50 mm dimension is its stereo baseline, not its
@@ -82,9 +90,10 @@ That suggests a practical registration target:
 
 The oscillation seen near an object is consistent with a view-distribution
 shift becoming more important as the gripper approaches and occludes the
-target. This adapter can reduce that shift. It cannot prove that the camera is
-the only cause: action timing, state normalization, hand-eye rotation, object
-appearance, and closed-loop latency can also cause back-and-forth corrections.
+target. This mount and image transform can reduce that shift. They cannot prove
+that the camera is the only cause: action timing, state normalization,
+hand-eye rotation, object appearance, and closed-loop latency can also cause
+back-and-forth corrections.
 
 ## Why the camera must move farther back
 
@@ -141,31 +150,36 @@ direction. The existing D405-bracket contact plane is `Z=0`.
 
 | Feature | Left candidate `(x, y)` | Right candidate `(x, y)` |
 |---|---:|---:|
-| YAM bracket camera-side insert 1 | `(-10, 0)` | `(-10, 0)` |
-| YAM bracket camera-side insert 2 | `(10, 0)` | `(10, 0)` |
 | D435i body/mount center | `(-23.5, 24)` | `(23.5, 24)` |
 | D435i screw 1 | `(-46, 24)` | `(1, 24)` |
 | D435i screw 2 | `(-1, 24)` | `(46, 24)` |
+| Structural rail 1 | `(44, path)` | `(-42, path)` |
+| Structural rail 2 | `(56, path)` | `(-30, path)` |
 
 The nominal camera rear-plane pivot is `Z=-48.71`; the carrier and D435i rotate
-2.3116° around the `Y=24` screw row. The left candidate's generated bounding
-box is 111.50 × 45.24 × 66.99 mm; the right candidate is
-97.50 × 45.24 × 66.99 mm. They are intentionally not geometric mirror images:
-the official bracket envelope is asymmetric, so the two support rails remain
-at `X=-27` and `X=41` while the long camera body changes outboard side.
+2.3116° around the `Y=24` screw row. Both structural rails are placed on the
+side opposite the long D435i housing; a rail on each side would pass through
+the camera after the optical setback. The full left mount's axis-aligned mesh
+envelope is 57.65 × 126.50 × 107.72 mm in the original bracket coordinates;
+the right is 57.65 × 112.50 × 107.72 mm. They are side-specific rather than
+simple mirror images because the official bracket itself is asymmetric.
 
 ## Printable parts and fasteners
 
-The parametric source is
-[`cad/d435i_yam_wrist_adapter.py`](../cad/d435i_yam_wrist_adapter.py). Generated
-parts are in [`cad/generated`](../cad/generated):
+The parametric carrier source is
+[`cad/d435i_yam_wrist_adapter.py`](../cad/d435i_yam_wrist_adapter.py), and
+[`cad/build_full_d435i_wrist_mount.py`](../cad/build_full_d435i_wrist_mount.py)
+fuses it to the supplied bracket mesh. Preferred printable parts are:
 
-- `yam_d405_camera_interface_20mm_coupon`: two-hole overlay gauge for the
-  bracket-to-adapter interface, identified by one edge notch;
-- `d435i_camera_interface_45mm_coupon`: two-hole overlay gauge for the D435i
-  rear interface, identified by two edge notches;
-- `yam_d435i_left`: D435i body shifted to one outboard side;
-- `yam_d435i_right`: mirrored version for the opposite wrist.
+- `official-bracket-derived/yam_d435i_full_wrist_mount_left.stl`;
+- `official-bracket-derived/yam_d435i_full_wrist_mount_right.stl`;
+- `d435i_camera_interface_45mm_coupon.stl`, an inexpensive D435i hole-pitch
+  gauge identified by two edge notches.
+
+The separate `yam_d435i_left/right` STEP/STL files are retained as an optional
+bolt-on experiment for someone deliberately keeping the original D405 bracket.
+They use blind heat-set-insert pockets and are **not** the recommended arm-mount
+parts.
 
 The left/right names are candidates, not knowledge of the installed camera
 yaw. Hold both parts against the stationary wrists and choose the assignment
@@ -173,11 +187,10 @@ that sends each 90 mm body outboard and leaves the USB-C cable clear.
 
 Starting hardware:
 
+- the original/vendor-specified two wrist-bracket screws through the preserved
+  40 mm-pitch passages into the YAM arm; reuse the known working screw type and
+  engagement rather than inferring thread or length from the STL;
 - two M3 × 8 camera screws per mount, preferably with 0.5–1.0 mm washers;
-- two M3 heat-set inserts per mount, approximately 4.6 mm outside diameter and
-  5 mm long, adjusted to the insert manufacturer's pilot-hole recommendation;
-- existing I2RT D405-bracket screws if their length gives proper insert
-  engagement;
 - flexible, strain-relieved USB-C cables.
 
 The camera carrier plus boss is 6 mm thick. An M3 × 8 screw therefore gives
@@ -186,31 +199,33 @@ roughly 1–2 mm engagement depending on washer thickness, below the camera's
 use longer screws, and do not exceed the RealSense torque recommendation.
 
 Start with PETG or PA-CF, 0.2 mm layers, five walls, six top/bottom layers, and
-at least 40% gyroid infill. Print the inexpensive coupons first. All checked-in
-STLs are validated as closed meshes with zero reported boundary/non-manifold
-edges; exact triangle counts are printed by `cad/render_previews.py`.
+at least 40% gyroid infill. Print the inexpensive 45 mm gauge first. Both full
+mount STLs are one-component, watertight meshes with zero reported
+boundary/non-manifold edges.
 
 ## Validation against the official bracket STL
 
-The adapter is a replacement for the D405 **at the camera face of the existing
-YAM bracket**. It is not a replacement wrist bracket. The official bracket's
-40 mm arm-side holes remain untouched; the adapter uses the 20 mm camera-side
-pair.
+The full mount directly fuses the view-matching carrier to the official bracket
+with approximately 503.7 mm³ of overlapping union volume. Automated manifold
+checks establish that each output is one watertight component and that:
 
-The rails route outside the measured bracket's local lateral envelope, at
-`X=-27` and `X=41`. Against the reference STL hash above, exact manifold
-booleans reported `0.000000 mm³` intersection for each plastic adapter. A
-conservative 90 × 25 × 25.05 mm D435i body box, placed at the intended offset
-and pitch, also reported `0.000000 mm³` bracket intersection for both sides.
-This validates the CAD files against the downloaded mesh, not manufacturing
-tolerances, cables, screws, a changed STL, or the rest of the physical robot.
+- both original arm screw axes accept a 2.9 mm-diameter through probe with
+  `0.000000 mm³` obstruction;
+- both D435i screw axes accept the same through probe with `0.000000 mm³`
+  obstruction;
+- the approximate 90 × 25 × 25.05 mm housing has less than `0.0001 mm³`
+  numerical intersection, well below the 0.01 mm³ threshold.
 
-Repeat the check on your local copy:
+Rebuild and repeat those checks against your exact downloaded source:
 
 ```bash
-uv run --with trimesh --with manifold3d --with scipy --with networkx \
-  python cad/check_official_bracket_fit.py /absolute/path/to/the-bracket.stl
+uv run --with cadquery --with trimesh --with manifold3d \
+  --with scipy --with networkx \
+  python cad/build_full_d435i_wrist_mount.py /absolute/path/to/the-bracket.stl
 ```
+
+This validates the meshes, not printer tolerances, screw-head access, cables,
+the surrounding robot, or the mount's strength under dynamic loads.
 
 ## Clearance and load checks before power
 
@@ -218,10 +233,11 @@ The D435i is 48 mm wider and about 17 g heavier than the D405 before adding the
 adapter. It changes wrist inertia and occupies substantially more volume.
 
 1. Remove power or use the robot's mechanically safe service procedure.
-2. Verify the one-notch 20 mm gauge on the bracket's camera face and the
-   two-notch 45 mm gauge on the D435i. Never force a screw into a mismatched
-   pitch.
-3. Test the full plastic part without a camera, then with an unpowered camera.
+2. Verify the two-notch 45 mm gauge on the D435i. Never force a screw into a
+   mismatched pitch.
+3. Compare the replacement's two arm holes, counterbores, and contact surfaces
+   directly against the original bracket before installing it. Test the full
+   part without a camera, then with an unpowered camera.
 4. Check both mirrored assignments. The camera must extend outboard, not into
    the bimanual shared workspace.
 5. Route USB-C with a strain-relief loop; keep it clear of every joint and the
@@ -258,10 +274,14 @@ the simplest symmetric build is to use the larger distance for both mounts and
 pass it as `--actual-distance-mm` for both plans. A larger distance remains
 crop-feasible; a smaller one may require pixels that do not exist.
 
-Regenerate the CAD if the selected distance materially differs from 166.72 mm:
+Regenerate the full mounts if the selected distance materially differs from
+166.72 mm, then rerun all mesh checks:
 
 ```bash
-uv run --with cadquery python cad/d435i_yam_wrist_adapter.py \
+uv run --with cadquery --with trimesh --with manifold3d \
+  --with scipy --with networkx \
+  python cad/build_full_d435i_wrist_mount.py \
+  /absolute/path/to/the-bracket.stl \
   --match-distance-mm YOUR_DISTANCE_MM
 ```
 
