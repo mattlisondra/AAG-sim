@@ -80,17 +80,22 @@ def camera_envelope(
     view_down_angle_deg: float,
     camera_mount_image_up_mm: float,
     camera_pitch_trim_deg: float = 0.0,
+    camera_lateral_mm: float = 0.0,
+    camera_yaw_deg: float = 0.0,
+    clearance_mm: float = 0.0,
 ) -> trimesh.Trimesh:
+    if clearance_mm < 0.0:
+        raise ValueError("clearance_mm must be non-negative")
     sign = -1.0 if side == "left" else 1.0
     extra_ray = match_distance_mm - reference_distance_mm
     view_down_angle = math.radians(view_down_angle_deg)
     optical_shift = extra_ray * math.cos(view_down_angle)
     ideal_image_up = extra_ray * math.sin(view_down_angle)
     rear_z = (D405_BODY_DEPTH - D435I_BODY_DEPTH) - optical_shift
-    camera = trimesh.creation.box(extents=D435I_BODY)
+    camera = trimesh.creation.box(extents=D435I_BODY + 2.0 * clearance_mm)
     camera.apply_translation(
         [
-            sign * D435I_BODY_CENTER_OFFSET,
+            sign * (D435I_BODY_CENTER_OFFSET + camera_lateral_mm),
             camera_mount_image_up_mm,
             rear_z + D435I_BODY[2] / 2.0,
         ]
@@ -100,15 +105,18 @@ def camera_envelope(
         camera_mount_image_up_mm - ideal_image_up,
         match_distance_mm,
     ) + math.radians(camera_pitch_trim_deg)
-    rotation = np.array(
-        [
-            [1.0, 0.0, 0.0],
-            [0.0, math.cos(aim), -math.sin(aim)],
-            [0.0, math.sin(aim), math.cos(aim)],
-        ]
+    pitch_pivot = [0.0, camera_mount_image_up_mm, rear_z]
+    camera.apply_transform(
+        trimesh.transformations.rotation_matrix(aim, [1.0, 0.0, 0.0], pitch_pivot)
     )
-    pivot = np.array([0.0, camera_mount_image_up_mm, rear_z])
-    camera.vertices = (camera.vertices - pivot) @ rotation.T + pivot
+    yaw_pivot = [sign * camera_lateral_mm, camera_mount_image_up_mm, rear_z]
+    camera.apply_transform(
+        trimesh.transformations.rotation_matrix(
+            math.radians(sign * camera_yaw_deg),
+            [0.0, 1.0, 0.0],
+            yaw_pivot,
+        )
+    )
     return camera
 
 
@@ -137,6 +145,8 @@ def main() -> int:
         default=DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     )
     parser.add_argument("--camera-pitch-trim-deg", type=float, default=0.0)
+    parser.add_argument("--camera-lateral-mm", type=float, default=0.0)
+    parser.add_argument("--camera-yaw-deg", type=float, default=0.0)
     parser.add_argument("--tolerance-mm3", type=float, default=0.01)
     parser.add_argument(
         "--allow-reference-mismatch",
@@ -172,6 +182,8 @@ def main() -> int:
             view_down_angle_deg=args.view_down_angle_deg,
             camera_mount_image_up_mm=args.camera_mount_image_up_mm,
             camera_pitch_trim_deg=args.camera_pitch_trim_deg,
+            camera_lateral_mm=args.camera_lateral_mm,
+            camera_yaw_deg=args.camera_yaw_deg,
         )
         camera.apply_transform(transform)
         bracket_camera_collision = collision_volume(bracket, camera)

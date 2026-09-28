@@ -1,0 +1,60 @@
+{
+  "status": "experimental fit-check candidate",
+  "reference_profile": "d405-wrist-physical-nominal",
+  "candidate_profile": "d435i-wrist-cad-raw-nominal",
+  "seeds": [42, 43, 44],
+  "cameras": ["left_cam", "right_cam"],
+  "mount": {
+    "match_distance_mm": 166.71790944273448,
+    "camera_mount_image_up_mm": 17.625,
+    "pitch_trim_deg": 6.0,
+    "mirrored_lateral_mm": 3.75,
+    "mirrored_yaw_deg": 1.5,
+    "camera_clearance_relief_mm": 0.75
+  },
+  "wrapper": {
+    "crop_left": 28,
+    "crop_top": 0,
+    "crop_width": 584,
+    "crop_height": 360,
+    "output_width": 640,
+    "output_height": 360
+  },
+  "simulated_link_6_optical_poses_wxyz": {
+    "left_cam": {
+      "position_m": [0.0037500006800502556, 0.12859539076319837, 0.028400821184460648],
+      "quaternion_wxyz": [0.6220745765181381, -0.31612456382433396, -0.32451094768222205, -0.6385774238344478]
+    },
+    "right_cam": {
+      "position_m": [-0.0037499993199497424, 0.1285953908178491, 0.028400821089802797],
+      "quaternion_wxyz": [0.6385774153117136, -0.3245109421345149, -0.3161245695192146, -0.6220745852669695]
+    }
+  },
+  "aggregate_metrics": {
+    "baseline_score": 0.4945391600456606,
+    "optimized_score": 0.15577488057129854,
+    "baseline_finger_iou": 0.2553191489361702,
+    "optimized_finger_iou": 0.941981981981982,
+    "baseline_task_iou": 0.6375332847115032,
+    "optimized_task_iou": 0.6138086108835128
+  },
+  "mesh_validation": {
+    "left": {
+      "watertight_components": 1,
+      "faces": 12076,
+      "relief_removed_mm3": 0.0,
+      "camera_envelope_overlap_mm3": 0.000011
+    },
+    "right": {
+      "watertight_components": 1,
+      "faces": 11626,
+      "relief_removed_mm3": 296.756,
+      "camera_envelope_overlap_mm3": 0.000023
+    }
+  },
+  "generated_stl_sha256": {
+    "left": "2bf36784bc5eda61e6c4e156b60d1120061a13195d0903efb94398735c448e49",
+    "right": "20b54e7f8225c0d345fc84835370568fcd5460a35ac8da0083c7b81aef943900"
+  },
+  "source_bracket_sha256": "c912eb55577ce157fb8b2cc11cb7baf350383baba564007fec4ce0a7b8ac0de2"
+}

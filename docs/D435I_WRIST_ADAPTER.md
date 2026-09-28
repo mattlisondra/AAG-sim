@@ -157,14 +157,34 @@ bash scripts/compare_wrist_cameras.sh \
   --optimize --optimization-passes 4
 ```
 
-The current three-seed search found a lower simulated image error at
-172.718 mm distance, 19.5 mm image-up, and −2.875° pitch trim. That geometry
-passes the automated mesh hole/housing checks against the supplied bracket,
-but it is intentionally not substituted for the default physical-FOV design:
-the upstream sim's 87° square-pixel D405 approximation is not the physical
-D405's 84° × 58° color calibration. Treat it as an A/B-print candidate after
-measuring both real D435i intrinsics. Full commands, metrics, and limitations
-are in [the simulation comparison guide](SIM_CAMERA_COMPARISON.md).
+The comparator now defaults to `d405-wrist-physical-nominal`, not the upstream
+87° square-pixel approximation. It reads raw actor segmentation so the search
+cannot hide a poorly aligned gripper behind thousands of well-matched table
+pixels. Across seeds 42–44 and both wrists, the current task-aware candidate
+improves finger-mask IoU from 25.5% to **94.2%** with:
+
+```text
+distance        166.717909 mm
+image-up         17.625000 mm
+pitch trim        6.000000 deg
+mirrored lateral  3.750000 mm
+mirrored yaw      1.500000 deg
+wrapper crop     left=28, top=0, width=584, height=360 -> 640x360
+```
+
+The exact pose, red/cyan overlays, per-seed metrics, and reproducible command
+are in [the simulation comparison guide](SIM_CAMERA_COMPARISON.md). The
+corresponding meshes are isolated under
+[`cad/generated/official-bracket-derived/physical-d405-task-optimized`](../cad/generated/official-bracket-derived/physical-d405-task-optimized/README.md)
+because this more aggressive pose needs a 0.75 mm camera-envelope relief in a
+small region of the right replacement bracket. It is an experimental fit-check
+candidate, not a structural certification.
+
+The gripper silhouette is nearly coincident, but the whole RGB frame cannot be
+pixel-identical: relocating the optical center changes parallax between the
+gripper, objects, table, and background. A single crop/resize can be exact at
+only one depth. That limitation is visible and quantified instead of being
+masked by a global RGB score.
 
 ## CAD coordinates and exact hole locations
 

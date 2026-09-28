@@ -20,3 +20,12 @@ def test_reference_intrinsics_match_upstream_formula():
     assert np.allclose(profile.cameras["top_cam"].intrinsic, intrinsic_from_hfov(640, 360, 69.4))
     assert np.allclose(profile.cameras["left_cam"].intrinsic, intrinsic_from_hfov(640, 360, 87.0))
     assert np.allclose(profile.cameras["right_cam"].intrinsic, intrinsic_from_hfov(640, 360, 87.0))
+
+
+def test_physical_d405_nominal_profile_is_not_upstream_square_pixel_approximation():
+    profile = load_profile("d405-wrist-physical-nominal")
+    intrinsic = profile.cameras["left_cam"].intrinsic
+
+    assert intrinsic[0, 0] == np.float32(355.3960047453417)
+    assert intrinsic[1, 1] == np.float32(324.72859594885625)
+    assert intrinsic[0, 0] != intrinsic[1, 1]

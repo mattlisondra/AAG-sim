@@ -153,6 +153,9 @@ aag-yam camera-profiles
 
 - `molmoact2-reference`: reproduces the camera matrices and mount poses in the
   pinned upstream simulator.
+- `d405-wrist-physical-nominal`: keeps the upstream wrist poses but projects
+  nominal physical D405 84° × 58° color intrinsics. This is the default
+  reference for D405/D435i mount comparison, not a measured calibration.
 - `d435i-all-nominal`: replaces both wrist camera intrinsics with a nominal
   D435i FOV while retaining the reference mounts. This is a domain-shift test,
   not a calibrated physical-rig profile.
@@ -191,8 +194,8 @@ The repository includes:
   client/server protocol while transforming only the wrist RGB frames;
 - a nominal simulator profile named `d435i-wrist-d405-match-nominal`.
 
-You can compare the D405-reference and D435i candidate views headlessly,
-without loading the policy or starting its server:
+You can compare the physical-D405-nominal reference and D435i candidate views
+headlessly, without loading the policy or starting its server:
 
 ```bash
 bash scripts/compare_wrist_cameras.sh --seed 42
@@ -202,9 +205,18 @@ For a multi-scene mount search:
 
 ```bash
 bash scripts/compare_wrist_cameras.sh \
+  --reference-profile d405-wrist-physical-nominal \
   --seed 42 --seed 43 --seed 44 \
   --optimize --optimization-passes 4
 ```
+
+The task-aware search measures gripper and task-actor segmentation rather than
+letting the table dominate a global RGB score. With the pinned scene it raised
+mean finger IoU from 25.5% to 94.2%. A separately labeled experimental mount
+pair for that pose is under
+[`cad/generated/official-bracket-derived/physical-d405-task-optimized`](cad/generated/official-bracket-derived/physical-d405-task-optimized/README.md).
+It remains a nominal/simulation-derived fit-check candidate; use measured
+intrinsics and stationary real-camera pairs before robot motion.
 
 Read [Headless D405/D435i simulation comparison](docs/SIM_CAMERA_COMPARISON.md)
 for the saved RGB outputs, metrics, current sim-derived result, and its limits.

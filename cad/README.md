@@ -60,13 +60,14 @@ If exact factory intrinsics produce a different distance through
 `aag-yam wrist-match-plan`, pass `--match-distance-mm` to the full-mount
 builder and repeat every clearance check.
 
-The full-mount builder also accepts `--camera-mount-image-up-mm` and
-`--camera-pitch-trim-deg`. The latter is an additive trim on top of the
-geometry-derived aiming correction. The headless ManiSkill comparison can
-search all three values and emits a complete builder command:
+The full-mount builder also accepts `--camera-mount-image-up-mm`,
+`--camera-pitch-trim-deg`, `--camera-lateral-mm`, and `--camera-yaw-deg`. The
+pitch trim is additive to the geometry-derived aiming correction. The headless
+ManiSkill comparison searches those values plus crop offsets:
 
 ```bash
 bash scripts/compare_wrist_cameras.sh \
+  --reference-profile d405-wrist-physical-nominal \
   --seed 42 --seed 43 --seed 44 \
   --optimize --optimization-passes 4
 ```
@@ -75,6 +76,15 @@ See [`docs/SIM_CAMERA_COMPARISON.md`](../docs/SIM_CAMERA_COMPARISON.md). A
 sim-optimized result is a printable candidate only after the builder passes;
 it is not a replacement for device intrinsics, physical registration, and
 powered-down clearance checks.
+
+The current task-aware result and its generated meshes are kept separately in
+[`generated/official-bracket-derived/physical-d405-task-optimized`](generated/official-bracket-derived/physical-d405-task-optimized/README.md).
+It reaches 94.2% mean simulated finger IoU. Its lower/angled camera envelope
+intersects part of the replaceable source bracket on the right variant, so its
+reproducible build uses `--camera-clearance-relief-mm 0.75`. That option
+subtracts only the inflated camera envelope from the source bracket before
+fusion. It is deliberately opt-in and must not be interpreted as a strength
+or powered-robot safety validation.
 
 ## Screws
 

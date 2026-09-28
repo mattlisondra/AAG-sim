@@ -1,12 +1,43 @@
 # Compare D405 and D435i wrist views in ManiSkill
 
-This workflow renders the upstream MolmoAct2 D405 wrist-camera approximation
-and a raw D435i model from the same deterministic ManiSkill scene. It then
-applies the same crop/resize operation used by the hardware camera adapter and
-saves paired RGB images, overlays, amplified differences, and numeric metrics.
+This workflow renders a D405 reference and a raw D435i candidate from the same
+deterministic ManiSkill scene. It applies the same fixed crop/resize intended
+for the hardware camera wrapper and saves paired RGB images, overlays,
+segmentation-mask alignment images, and numeric metrics.
 
-It does **not** load a MolmoAct2 checkpoint, start the inference server, or move
-the simulated robot. Only ManiSkill/SAPIEN rendering uses the GPU.
+It does **not** load a MolmoAct2 checkpoint or start the inference server. Only
+ManiSkill/SAPIEN rendering uses the GPU.
+
+## Why the first RGB-only result was misleading
+
+The original optimizer minimized error over the whole RGB frame. Most pixels
+were table texture and background, so it could improve that score while the
+gripper silhouette became worse. The revised objective reads ManiSkill's raw
+actor segmentation and explicitly measures:
+
+- left/right finger-mask intersection-over-union (IoU);
+- task-object and box-mask IoU;
+- RGB and edge error near those masks;
+- global RGB statistics as secondary diagnostics only.
+
+The primary score weights finger geometry most heavily. The saved red/cyan
+overlays are more interpretable than one scalar: red is D405-only, cyan is
+D435i-only, and white is overlap.
+
+## Two different D405 references
+
+The distinction is important:
+
+- `d405-wrist-physical-nominal` uses the physical D405 nominal 84° × 58° color
+  projection at the upstream wrist pose. This is the default and the relevant
+  starting point for a real MolmoAct2 rig.
+- `molmoact2-reference` exactly reproduces the pinned ManiSkill approximation,
+  which uses an 87° horizontal FOV and equal `fx`/`fy`. It is useful for an
+  upstream-simulator ablation, but it is not the physical D405 projection.
+
+Neither is a substitute for measured intrinsics from the actual D405 that
+recorded a trajectory. If those become available, make a measured reference
+profile and rerun the same procedure.
 
 ## One-time setup
 
@@ -19,27 +50,13 @@ uv run --project third_party/molmoact2 \
   python -m mani_skill.utils.download_asset ycb -y
 ```
 
-The last command installs the YCB assets in ManiSkill's user data directory.
-
 ## Save one paired comparison
 
 ```bash
-bash scripts/compare_wrist_cameras.sh \
-  --seed 42 \
-  --shader-pack minimal
+bash scripts/compare_wrist_cameras.sh --seed 42 --shader-pack minimal
 ```
 
-The default comparison is:
-
-- environment: `BimanualYAMPutEverythingInBox-v1`;
-- reference: pinned upstream `molmoact2-reference` camera pose and 87°
-  square-pixel wrist-camera approximation;
-- candidate: nominal 640 × 360 D435i RGB intrinsics at the CAD-derived mount
-  pose;
-- postprocessing: centered crop calculated from both pinhole models, followed
-  by bilinear resize to 640 × 360.
-
-Each run creates a timestamped directory under `outputs/camera_compare/` with:
+Each run creates a timestamped directory under `outputs/camera_compare/`:
 
 ```text
 report.json
@@ -49,88 +66,125 @@ baseline/seed_42/left_cam/
   candidate_d435i_matched.png
   overlay_50_50.png
   difference_x4.png
+  edge_overlay_red_cyan.png
+  finger_mask_overlay_red_cyan.png
+  task_mask_overlay_red_cyan.png
   comparison.png
 ```
 
 The same files are produced for `right_cam`. Use `--camera left_cam` to render
-only one wrist. The `comparison.png` montage is usually the fastest visual
-check: compare the gripper silhouette, box/object edges, horizon, and table
-texture rather than relying on one metric.
+one wrist only.
 
-## Optimize the simulated mount
+## Optimize the camera pose and wrapper crop
 
-Use several scene seeds so one object placement cannot dominate the result:
+Use several scene seeds:
 
 ```bash
 bash scripts/compare_wrist_cameras.sh \
+  --reference-profile d405-wrist-physical-nominal \
   --seed 42 --seed 43 --seed 44 \
-  --optimize \
-  --optimization-passes 4 \
+  --optimize --optimization-passes 4 \
   --shader-pack minimal
 ```
 
-The optimizer performs a deterministic coordinate search over:
+The search varies working distance, image-up displacement, pitch, mirrored
+lateral displacement, mirrored yaw, and small crop offsets. Parameters can be
+locked for a constrained search with repeated `--optimize-field` arguments.
 
-- RGB optical-center distance to the nominal grasp plane;
-- camera screw-row displacement in the image-up direction;
-- pitch trim added to the geometry-derived aiming correction.
+With the pinned environment and nominal intrinsics, the command above produced:
 
-It minimizes `0.75 × normalized RGB MAE + 0.25 × edge MAE` across both wrists
-and all requested seeds. Lower score, MAE, RMSE, and edge MAE are better;
-higher PSNR and gray NCC are better. The optimized images are saved beside the
-baseline, and `report.json` contains the full search history, poses, crop
-plans, and a reproducible CAD command.
+| Metric | Conservative mount | Task-aware candidate |
+|---|---:|---:|
+| Primary alignment score (lower is better) | 0.49454 | **0.15577** |
+| Finger IoU | 25.5% | **94.2%** |
+| Task-actor IoU | 63.8% | **61.4%** |
 
-On the currently pinned simulator, the three-seed run above produced:
+The recovered physical-D405 candidate is:
 
-| Result | Distance | Image-up | Pitch trim | Score | PSNR |
-|---|---:|---:|---:|---:|---:|
-| Conservative CAD baseline | 166.718 mm | 24.0 mm | 0° | 0.05400 | 20.34 dB |
-| Sim-optimized | 172.718 mm | 19.5 mm | −2.875° | 0.04342 | 22.38 dB |
+| Parameter | Value |
+|---|---:|
+| D435i RGB lens-to-working-plane distance | 166.7179 mm |
+| Camera mount image-up displacement | 17.625 mm |
+| Added pitch trim | 6.000° |
+| Mirrored lateral optical-axis displacement | 3.750 mm |
+| Mirrored yaw | 1.500° |
+| D435i wrapper crop | `(left=28, top=0, width=584, height=360)` |
+| Wrapper output | 640 × 360 RGB |
 
-This is a 19.6% reduction in the aggregate comparison score. The result was
-also passed through the full-mount builder against the supplied official
-bracket STL: both arm passages and both camera passages remained open, and the
-camera-envelope intersections stayed below the builder's 0.01 mm³ tolerance.
+Here is the saved seed-42 left-wrist comparison. The panels are the D405
+reference, raw D435i, cropped/resized D435i, and red/cyan edge overlay:
 
-To reproduce that candidate in temporary output without replacing the checked
-in conservative meshes:
+![Task-optimized D405/D435i wrist comparison](assets/camera-comparison/physical-d405-task-optimized-seed42-left.png)
+
+The isolated finger-mask overlay below makes the registration easier to read:
+red is reference-only, cyan is candidate-only, and white is overlap.
+
+![Finger-mask overlap](assets/camera-comparison/physical-d405-task-optimized-finger-mask-seed42-left.png)
+
+The resulting local optical poses relative to each `link_6` are recorded in
+the generated mount directory. They are:
+
+```text
+left  p = [ 0.003750001, 0.128595391, 0.028400821 ] m
+left  q = [ 0.622074577,-0.316124564,-0.324510948,-0.638577424 ] wxyz
+right p = [-0.003749999, 0.128595391, 0.028400821 ] m
+right q = [ 0.638577415,-0.324510942,-0.316124570,-0.622074585 ] wxyz
+```
+
+## Build the corresponding experimental mounts
+
+The lower camera position intersects a small part of the old D405 support on
+the asymmetric right-hand variant. Because this is already a full replacement
+part, the builder can remove only the camera-envelope interference before
+fusing the new carrier:
 
 ```bash
-candidate_dir="$(mktemp -d /tmp/aag-d435i-sim-XXXXXX)"
 uv run --with cadquery --with trimesh --with manifold3d \
   --with scipy --with networkx \
   python cad/build_full_d435i_wrist_mount.py \
   '/home/asblab8/Desktop/camera+bracket(for+D405)+-+camera+bracket(for+D405).stl' \
-  --output-dir "$candidate_dir" \
-  --match-distance-mm 172.717909 \
-  --camera-mount-image-up-mm 19.5 \
-  --camera-pitch-trim-deg -2.875
+  --output-dir cad/generated/official-bracket-derived/physical-d405-task-optimized \
+  --match-distance-mm 166.717909 \
+  --camera-mount-image-up-mm 17.625 \
+  --camera-pitch-trim-deg 6.0 \
+  --camera-lateral-mm 3.75 \
+  --camera-yaw-deg 1.5 \
+  --camera-clearance-relief-mm 0.75
 ```
 
-The builder refuses a source STL whose hash differs from the geometry used for
-alignment, fuses one watertight part per wrist, and reruns the hole and housing
-clearance probes.
+Validation on the supplied source STL reported:
 
-## What this experiment can and cannot establish
+- both outputs are one-component watertight meshes;
+- both original arm passages and both D435i passages are unobstructed;
+- exact camera-envelope overlap is below `0.00003 mm³`;
+- no source-bracket material is removed on the left variant;
+- `296.756 mm³` (about 1.27% of the source bracket volume) is removed on the
+  right variant to provide the requested 0.75 mm envelope relief.
 
-The simulation comparison isolates first-order pose, projection, crop, and
-parallax effects. It is useful for rejecting obviously poor mount geometry
-before printing. It is not sufficient evidence to print the optimized variant
-as the final hardware revision:
+That validates mesh topology and nominal clearance, not strength. The relief
+variant is experimental and needs a stationary fit, screw-access check,
+printer-tolerance check, cable check, and conservative structural/load review
+before it is installed on a powered arm.
 
-- the upstream simulated D405 uses an 87° square-pixel approximation, whereas
-  the physical D405 nominal color FOV is 84° × 58°;
-- real intrinsics and distortion vary by device and stream profile;
-- exposure, white balance, sensor response, cable clearance, printed
-  tolerances, and robot self-occlusion are not simulated;
-- moving the camera center causes depth-dependent parallax that no single 2-D
-  crop can eliminate.
+## Why the complete RGB frames cannot be identical
 
-For the real robot, first query both D435i devices with
-`scripts/query_realsense_intrinsics.py`, then use
-`scripts/run_d435i_camera_server.py` for the fixed crop/resize. Compare
-stationary physical D405 and D435i frames at multiple gripper openings and
-object depths before enabling motion. See
-[D435i wrist cameras that approximate the MolmoAct2 D405 view](D435I_WRIST_ADAPTER.md)
-for the hardware acceptance sequence.
+The gripper can be made nearly coincident, as its 94.2% IoU shows. The full
+frame cannot be made pixel-identical with a rigid mount and a single 2-D crop:
+
+1. The D435i color lens has a narrower FOV, so it must move farther from the
+   working plane.
+2. Moving the optical center changes parallax.
+3. The gripper, grasped object, box, table, and distant floor are at different
+   depths.
+4. One homography/crop can be exact at one plane only.
+
+The red/cyan rim around the box and floor lines is therefore useful evidence,
+not an optimizer bug. Exact all-depth reprojection would require depth-aware
+3-D warping and inpainting of disoccluded pixels. The D435i depth minimum range
+also makes that unreliable around the close gripper, so it is not enabled in
+the real-time RGB wrapper.
+
+For real hardware, replace the nominal D435i intrinsics with each unit's
+factory values, save stationary paired D405/D435i frames at several gripper
+openings and object depths, and tune against those before motion. See
+[D435i wrist cameras that approximate the MolmoAct2 D405 view](D435I_WRIST_ADAPTER.md).

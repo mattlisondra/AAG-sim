@@ -110,6 +110,8 @@ def setback_mount(
     include_d405_insert_pockets: bool = True,
     base_overlap_mm: float = 0.0,
     camera_pitch_trim_deg: float = 0.0,
+    camera_lateral_mm: float = 0.0,
+    camera_yaw_deg: float = 0.0,
 ):
     """Build one mirrored adapter.
 
@@ -141,8 +143,9 @@ def setback_mount(
     # Match the D405 color axis rather than the body center.  The D405 color
     # origin is 9 mm from its mount reference; D435i is 32.5 mm.  Mirroring the
     # camera therefore places its body/mount midpoint 23.5 mm outboard.
+    optical_axis_x = outboard_sign * camera_lateral_mm
     body_center_x = outboard_sign * (
-        D435I_COLOR_AXIS_FROM_MOUNT - D405_COLOR_AXIS_FROM_MOUNT
+        D435I_COLOR_AXIS_FROM_MOUNT - D405_COLOR_AXIS_FROM_MOUNT + camera_lateral_mm
     )
     camera_holes = [
         (body_center_x - D435I_M3_PITCH / 2.0, camera_mount_image_up_mm),
@@ -222,6 +225,11 @@ def setback_mount(
         (1.0, camera_mount_image_up_mm, camera_rear_z),
         aim_correction_deg,
     )
+    carrier = carrier.rotate(
+        (optical_axis_x, camera_mount_image_up_mm, camera_rear_z),
+        (optical_axis_x, camera_mount_image_up_mm + 1.0, camera_rear_z),
+        outboard_sign * camera_yaw_deg,
+    )
 
     # Two diagonal rails run outside the measured official bracket envelope.
     # The front outrigger and rear carrier tie provide the cross-bracing; a
@@ -277,6 +285,8 @@ def main() -> int:
         default=DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     )
     parser.add_argument("--camera-pitch-trim-deg", type=float, default=0.0)
+    parser.add_argument("--camera-lateral-mm", type=float, default=0.0)
+    parser.add_argument("--camera-yaw-deg", type=float, default=0.0)
     args = parser.parse_args()
 
     export_part(
@@ -293,6 +303,8 @@ def main() -> int:
         "view_down_angle_deg": args.view_down_angle_deg,
         "camera_mount_image_up_mm": args.camera_mount_image_up_mm,
         "camera_pitch_trim_deg": args.camera_pitch_trim_deg,
+        "camera_lateral_mm": args.camera_lateral_mm,
+        "camera_yaw_deg": args.camera_yaw_deg,
     }
     export_part(setback_mount(outboard_sign=-1, **common), args.output_dir / "yam_d435i_left")
     export_part(setback_mount(outboard_sign=1, **common), args.output_dir / "yam_d435i_right")

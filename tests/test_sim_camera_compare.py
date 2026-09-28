@@ -6,6 +6,7 @@ from aag_yam_sim.sim_camera_compare import (
     MountParameters,
     image_metrics,
     mount_pose_from_parameters,
+    task_alignment_metrics,
 )
 
 
@@ -55,3 +56,34 @@ def test_image_metrics_penalize_a_shifted_image():
     assert metrics["mae"] > 0
     assert metrics["edge_mae"] > 0
     assert metrics["gray_ncc"] < 1
+
+
+def test_task_alignment_metrics_expose_shifted_gripper_geometry():
+    rgb = np.zeros((32, 48, 3), dtype=np.uint8)
+    segmentation = np.zeros((32, 48), dtype=np.int16)
+    segmentation[18:31, 20:28] = 10
+    segmentation[8:16, 32:44] = 25
+
+    exact = task_alignment_metrics(
+        rgb,
+        rgb,
+        segmentation,
+        segmentation,
+        finger_ids=(10,),
+        task_ids=(25,),
+    )
+    shifted = task_alignment_metrics(
+        rgb,
+        rgb,
+        segmentation,
+        np.roll(segmentation, 5, axis=1),
+        finger_ids=(10,),
+        task_ids=(25,),
+    )
+
+    assert exact["score"] == 0.0
+    assert exact["finger_iou"] == 1.0
+    assert exact["task_iou"] == 1.0
+    assert shifted["score"] > exact["score"]
+    assert shifted["finger_iou"] < exact["finger_iou"]
+    assert shifted["task_iou"] < exact["task_iou"]

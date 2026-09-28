@@ -85,6 +85,8 @@ def verify_camera_holes(
     view_down_angle_deg: float,
     camera_mount_image_up_mm: float,
     camera_pitch_trim_deg: float,
+    camera_lateral_mm: float,
+    camera_yaw_deg: float,
 ) -> list[float]:
     extra_ray = match_distance_mm - reference_distance_mm
     view_down_angle = math.radians(view_down_angle_deg)
@@ -96,13 +98,21 @@ def verify_camera_holes(
         match_distance_mm,
     ) + math.radians(camera_pitch_trim_deg)
     sign = -1.0 if side == "left" else 1.0
-    body_center_x = sign * (D435I_COLOR_AXIS_FROM_MOUNT - D405_COLOR_AXIS_FROM_MOUNT)
+    optical_axis_x = sign * camera_lateral_mm
+    body_center_x = sign * (
+        D435I_COLOR_AXIS_FROM_MOUNT - D405_COLOR_AXIS_FROM_MOUNT + camera_lateral_mm
+    )
     hole_xs = (
         body_center_x - D435I_M3_PITCH / 2.0,
         body_center_x + D435I_M3_PITCH / 2.0,
     )
     pivot = [0.0, camera_mount_image_up_mm, camera_rear_z]
     carrier_rotation = trimesh.transformations.rotation_matrix(aim, [1.0, 0.0, 0.0], pivot)
+    yaw_rotation = trimesh.transformations.rotation_matrix(
+        math.radians(sign * camera_yaw_deg),
+        [0.0, 1.0, 0.0],
+        [optical_axis_x, camera_mount_image_up_mm, camera_rear_z],
+    )
 
     results = []
     for x in hole_xs:
@@ -113,6 +123,7 @@ def verify_camera_holes(
             axis="z",
         )
         probe.apply_transform(carrier_rotation)
+        probe.apply_transform(yaw_rotation)
         probe.apply_transform(transform)
         results.append(collision_volume(full_mount, probe))
     return results
@@ -129,6 +140,9 @@ def build_one(
     view_down_angle_deg: float,
     camera_mount_image_up_mm: float,
     camera_pitch_trim_deg: float,
+    camera_lateral_mm: float,
+    camera_yaw_deg: float,
+    camera_clearance_relief_mm: float,
 ) -> None:
     sign = -1 if side == "left" else 1
     carrier = setback_mount(
@@ -140,6 +154,8 @@ def build_one(
         include_d405_insert_pockets=False,
         base_overlap_mm=fusion_overlap_mm,
         camera_pitch_trim_deg=camera_pitch_trim_deg,
+        camera_lateral_mm=camera_lateral_mm,
+        camera_yaw_deg=camera_yaw_deg,
     )
 
     transform = adapter_to_bracket_transform()
@@ -149,11 +165,35 @@ def build_one(
         carrier_mesh = trimesh.load_mesh(carrier_path, process=True)
     carrier_mesh.apply_transform(transform)
 
-    fusion_volume = collision_volume(bracket, carrier_mesh)
+    working_bracket = bracket
+    removed_volume = 0.0
+    if camera_clearance_relief_mm > 0.0:
+        relief = camera_envelope(
+            side,
+            reference_distance_mm=reference_distance_mm,
+            match_distance_mm=match_distance_mm,
+            view_down_angle_deg=view_down_angle_deg,
+            camera_mount_image_up_mm=camera_mount_image_up_mm,
+            camera_pitch_trim_deg=camera_pitch_trim_deg,
+            camera_lateral_mm=camera_lateral_mm,
+            camera_yaw_deg=camera_yaw_deg,
+            clearance_mm=camera_clearance_relief_mm,
+        )
+        relief.apply_transform(transform)
+        working_bracket = trimesh.boolean.difference([bracket, relief], engine="manifold")
+        if working_bracket is None or working_bracket.is_empty:
+            raise RuntimeError(f"{side}: camera-clearance relief removed the bracket")
+        if not working_bracket.is_watertight or len(
+            working_bracket.split(only_watertight=False)
+        ) != 1:
+            raise RuntimeError(f"{side}: camera-clearance relief split the bracket")
+        removed_volume = float(bracket.volume - working_bracket.volume)
+
+    fusion_volume = collision_volume(working_bracket, carrier_mesh)
     if fusion_volume <= 0.01:
         raise RuntimeError(f"{side}: carrier does not overlap bracket for a solid fusion")
 
-    full_mount = trimesh.boolean.union([bracket, carrier_mesh], engine="manifold")
+    full_mount = trimesh.boolean.union([working_bracket, carrier_mesh], engine="manifold")
     if full_mount is None or full_mount.is_empty:
         raise RuntimeError(f"{side}: mesh union failed")
     components = full_mount.split(only_watertight=False)
@@ -173,6 +213,8 @@ def build_one(
         view_down_angle_deg=view_down_angle_deg,
         camera_mount_image_up_mm=camera_mount_image_up_mm,
         camera_pitch_trim_deg=camera_pitch_trim_deg,
+        camera_lateral_mm=camera_lateral_mm,
+        camera_yaw_deg=camera_yaw_deg,
     )
     camera = camera_envelope(
         side,
@@ -181,6 +223,8 @@ def build_one(
         view_down_angle_deg=view_down_angle_deg,
         camera_mount_image_up_mm=camera_mount_image_up_mm,
         camera_pitch_trim_deg=camera_pitch_trim_deg,
+        camera_lateral_mm=camera_lateral_mm,
+        camera_yaw_deg=camera_yaw_deg,
     )
     camera.apply_transform(transform)
     camera_collision = collision_volume(full_mount, camera)
@@ -195,6 +239,7 @@ def build_one(
     full_mount.export(output_path)
     print(
         f"{side}: fusion={fusion_volume:.3f} mm^3, volume={full_mount.volume:.3f} mm^3, "
+        f"relief_removed={removed_volume:.3f} mm^3, "
         f"faces={len(full_mount.faces)}, arm_holes={arm_hole_collisions}, "
         f"camera_holes={camera_hole_collisions}, camera={camera_collision:.6f} mm^3"
     )
@@ -226,7 +271,17 @@ def main() -> int:
         default=DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     )
     parser.add_argument("--camera-pitch-trim-deg", type=float, default=0.0)
+    parser.add_argument("--camera-lateral-mm", type=float, default=0.0)
+    parser.add_argument("--camera-yaw-deg", type=float, default=0.0)
+    parser.add_argument(
+        "--camera-clearance-relief-mm",
+        type=float,
+        default=0.0,
+        help="experimental clearance subtracted from the replaceable source bracket",
+    )
     args = parser.parse_args()
+    if args.camera_clearance_relief_mm < 0.0:
+        raise SystemExit("--camera-clearance-relief-mm must be non-negative")
 
     actual_sha = file_sha256(args.bracket_stl)
     if actual_sha != EXPECTED_REFERENCE_SHA256:
@@ -247,6 +302,9 @@ def main() -> int:
         "view_down_angle_deg": args.view_down_angle_deg,
         "camera_mount_image_up_mm": args.camera_mount_image_up_mm,
         "camera_pitch_trim_deg": args.camera_pitch_trim_deg,
+        "camera_lateral_mm": args.camera_lateral_mm,
+        "camera_yaw_deg": args.camera_yaw_deg,
+        "camera_clearance_relief_mm": args.camera_clearance_relief_mm,
     }
     build_one(side="left", **common)
     build_one(side="right", **common)
