@@ -53,12 +53,28 @@ The default mount targets a 166.72 mm D435i RGB lens-to-grasp distance. It:
 
 - places the D435i body 23.5 mm outboard to align the RGB optical axis;
 - raises the screw row to 24.0 mm for bracket clearance;
-- applies a 2.3116° pitch correction to retain the nominal target bearing;
+- applies a 2.3123° pitch correction to retain the nominal target bearing;
 - routes both structural rails on the side opposite the wide D435i housing.
 
 If exact factory intrinsics produce a different distance through
 `aag-yam wrist-match-plan`, pass `--match-distance-mm` to the full-mount
 builder and repeat every clearance check.
+
+The full-mount builder also accepts `--camera-mount-image-up-mm` and
+`--camera-pitch-trim-deg`. The latter is an additive trim on top of the
+geometry-derived aiming correction. The headless ManiSkill comparison can
+search all three values and emits a complete builder command:
+
+```bash
+bash scripts/compare_wrist_cameras.sh \
+  --seed 42 --seed 43 --seed 44 \
+  --optimize --optimization-passes 4
+```
+
+See [`docs/SIM_CAMERA_COMPARISON.md`](../docs/SIM_CAMERA_COMPARISON.md). A
+sim-optimized result is a printable candidate only after the builder passes;
+it is not a replacement for device intrinsics, physical registration, and
+powered-down clearance checks.
 
 ## Screws
 

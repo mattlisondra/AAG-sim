@@ -191,6 +191,24 @@ The repository includes:
   client/server protocol while transforming only the wrist RGB frames;
 - a nominal simulator profile named `d435i-wrist-d405-match-nominal`.
 
+You can compare the D405-reference and D435i candidate views headlessly,
+without loading the policy or starting its server:
+
+```bash
+bash scripts/compare_wrist_cameras.sh --seed 42
+```
+
+For a multi-scene mount search:
+
+```bash
+bash scripts/compare_wrist_cameras.sh \
+  --seed 42 --seed 43 --seed 44 \
+  --optimize --optimization-passes 4
+```
+
+Read [Headless D405/D435i simulation comparison](docs/SIM_CAMERA_COMPARISON.md)
+for the saved RGB outputs, metrics, current sim-derived result, and its limits.
+
 Read [D435i wrist adapter and view matching](docs/D435I_WRIST_ADAPTER.md) before
 printing. The preferred full mount directly incorporates the supplied official
 i2rt YAM D405 bracket geometry, retains its original 40 mm-pitch arm passages,

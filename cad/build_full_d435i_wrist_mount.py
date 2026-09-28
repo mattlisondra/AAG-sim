@@ -84,13 +84,17 @@ def verify_camera_holes(
     match_distance_mm: float,
     view_down_angle_deg: float,
     camera_mount_image_up_mm: float,
+    camera_pitch_trim_deg: float,
 ) -> list[float]:
     extra_ray = match_distance_mm - reference_distance_mm
     view_down_angle = math.radians(view_down_angle_deg)
     optical_shift = extra_ray * math.cos(view_down_angle)
     ideal_image_up = extra_ray * math.sin(view_down_angle)
     camera_rear_z = (D405_BODY_DEPTH - D435I_BODY_DEPTH) - optical_shift
-    aim = math.atan2(camera_mount_image_up_mm - ideal_image_up, match_distance_mm)
+    aim = math.atan2(
+        camera_mount_image_up_mm - ideal_image_up,
+        match_distance_mm,
+    ) + math.radians(camera_pitch_trim_deg)
     sign = -1.0 if side == "left" else 1.0
     body_center_x = sign * (D435I_COLOR_AXIS_FROM_MOUNT - D405_COLOR_AXIS_FROM_MOUNT)
     hole_xs = (
@@ -124,6 +128,7 @@ def build_one(
     match_distance_mm: float,
     view_down_angle_deg: float,
     camera_mount_image_up_mm: float,
+    camera_pitch_trim_deg: float,
 ) -> None:
     sign = -1 if side == "left" else 1
     carrier = setback_mount(
@@ -134,6 +139,7 @@ def build_one(
         camera_mount_image_up_mm=camera_mount_image_up_mm,
         include_d405_insert_pockets=False,
         base_overlap_mm=fusion_overlap_mm,
+        camera_pitch_trim_deg=camera_pitch_trim_deg,
     )
 
     transform = adapter_to_bracket_transform()
@@ -166,6 +172,7 @@ def build_one(
         match_distance_mm=match_distance_mm,
         view_down_angle_deg=view_down_angle_deg,
         camera_mount_image_up_mm=camera_mount_image_up_mm,
+        camera_pitch_trim_deg=camera_pitch_trim_deg,
     )
     camera = camera_envelope(
         side,
@@ -173,6 +180,7 @@ def build_one(
         match_distance_mm=match_distance_mm,
         view_down_angle_deg=view_down_angle_deg,
         camera_mount_image_up_mm=camera_mount_image_up_mm,
+        camera_pitch_trim_deg=camera_pitch_trim_deg,
     )
     camera.apply_transform(transform)
     camera_collision = collision_volume(full_mount, camera)
@@ -217,6 +225,7 @@ def main() -> int:
         type=float,
         default=DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     )
+    parser.add_argument("--camera-pitch-trim-deg", type=float, default=0.0)
     args = parser.parse_args()
 
     actual_sha = file_sha256(args.bracket_stl)
@@ -237,6 +246,7 @@ def main() -> int:
         "match_distance_mm": args.match_distance_mm,
         "view_down_angle_deg": args.view_down_angle_deg,
         "camera_mount_image_up_mm": args.camera_mount_image_up_mm,
+        "camera_pitch_trim_deg": args.camera_pitch_trim_deg,
     }
     build_one(side="left", **common)
     build_one(side="right", **common)

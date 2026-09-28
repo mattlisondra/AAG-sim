@@ -109,6 +109,7 @@ def setback_mount(
     insert_diameter_mm: float = 4.6,
     include_d405_insert_pockets: bool = True,
     base_overlap_mm: float = 0.0,
+    camera_pitch_trim_deg: float = 0.0,
 ):
     """Build one mirrored adapter.
 
@@ -132,9 +133,10 @@ def setback_mount(
             "camera_mount_image_up_mm must not be below the pinhole-optimal "
             f"{ideal_image_up_shift:.2f} mm"
         )
-    aim_correction_deg = math.degrees(
+    geometric_aim_correction_deg = math.degrees(
         math.atan2(camera_mount_image_up_mm - ideal_image_up_shift, match_distance_mm)
     )
+    aim_correction_deg = geometric_aim_correction_deg + camera_pitch_trim_deg
 
     # Match the D405 color axis rather than the body center.  The D405 color
     # origin is 9 mm from its mount reference; D435i is 32.5 mm.  Mirroring the
@@ -274,6 +276,7 @@ def main() -> int:
         type=float,
         default=DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     )
+    parser.add_argument("--camera-pitch-trim-deg", type=float, default=0.0)
     args = parser.parse_args()
 
     export_part(
@@ -289,6 +292,7 @@ def main() -> int:
         "match_distance_mm": args.match_distance_mm,
         "view_down_angle_deg": args.view_down_angle_deg,
         "camera_mount_image_up_mm": args.camera_mount_image_up_mm,
+        "camera_pitch_trim_deg": args.camera_pitch_trim_deg,
     }
     export_part(setback_mount(outboard_sign=-1, **common), args.output_dir / "yam_d435i_left")
     export_part(setback_mount(outboard_sign=1, **common), args.output_dir / "yam_d435i_right")

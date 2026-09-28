@@ -79,6 +79,7 @@ def camera_envelope(
     match_distance_mm: float,
     view_down_angle_deg: float,
     camera_mount_image_up_mm: float,
+    camera_pitch_trim_deg: float = 0.0,
 ) -> trimesh.Trimesh:
     sign = -1.0 if side == "left" else 1.0
     extra_ray = match_distance_mm - reference_distance_mm
@@ -98,7 +99,7 @@ def camera_envelope(
     aim = math.atan2(
         camera_mount_image_up_mm - ideal_image_up,
         match_distance_mm,
-    )
+    ) + math.radians(camera_pitch_trim_deg)
     rotation = np.array(
         [
             [1.0, 0.0, 0.0],
@@ -135,6 +136,7 @@ def main() -> int:
         type=float,
         default=DEFAULT_CAMERA_MOUNT_IMAGE_UP,
     )
+    parser.add_argument("--camera-pitch-trim-deg", type=float, default=0.0)
     parser.add_argument("--tolerance-mm3", type=float, default=0.01)
     parser.add_argument(
         "--allow-reference-mismatch",
@@ -169,6 +171,7 @@ def main() -> int:
             match_distance_mm=args.match_distance_mm,
             view_down_angle_deg=args.view_down_angle_deg,
             camera_mount_image_up_mm=args.camera_mount_image_up_mm,
+            camera_pitch_trim_deg=args.camera_pitch_trim_deg,
         )
         camera.apply_transform(transform)
         bracket_camera_collision = collision_volume(bracket, camera)

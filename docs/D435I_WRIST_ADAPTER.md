@@ -142,6 +142,30 @@ itself is not the working distance.
 This construction matches a single working plane. Because the camera center
 moves, parallax prevents a 2-D crop from matching every depth simultaneously.
 
+## Compare both views in ManiSkill before printing
+
+The repository can render the pinned D405-reference view and the proposed raw
+D435i view from the same deterministic scene, apply the D435i crop/resize, and
+save the two RGBs, overlay, amplified difference, and numeric metrics. It uses
+ManiSkill only; a MolmoAct2 server or checkpoint is not loaded.
+
+```bash
+bash scripts/compare_wrist_cameras.sh --seed 42
+
+bash scripts/compare_wrist_cameras.sh \
+  --seed 42 --seed 43 --seed 44 \
+  --optimize --optimization-passes 4
+```
+
+The current three-seed search found a lower simulated image error at
+172.718 mm distance, 19.5 mm image-up, and −2.875° pitch trim. That geometry
+passes the automated mesh hole/housing checks against the supplied bracket,
+but it is intentionally not substituted for the default physical-FOV design:
+the upstream sim's 87° square-pixel D405 approximation is not the physical
+D405's 84° × 58° color calibration. Treat it as an A/B-print candidate after
+measuring both real D435i intrinsics. Full commands, metrics, and limitations
+are in [the simulation comparison guide](SIM_CAMERA_COMPARISON.md).
+
 ## CAD coordinates and exact hole locations
 
 The CAD uses millimetres. `X` is lateral across the camera, `Y` points toward
