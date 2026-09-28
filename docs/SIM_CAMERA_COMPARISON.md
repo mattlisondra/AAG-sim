@@ -103,7 +103,7 @@ right q = [ 0.631745206,-0.361017160,-0.340354101,-0.595586846 ] wxyz
 ```
 
 The full report and exact mesh parameters are recorded in
-[`parameters.json`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/parameters.json).
+[`parameters.json`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/parameters.json).
 
 ## Build the corresponding mounts
 
@@ -112,17 +112,24 @@ uv run --with cadquery --with trimesh --with manifold3d \
   --with scipy --with networkx \
   python cad/build_full_d435i_wrist_mount.py \
   '/absolute/path/to/camera+bracket(for+D405)+-+camera+bracket(for+D405).stl' \
-  --output-dir cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized \
+  --output-dir cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2 \
   --match-distance-mm 188.717909 \
   --camera-mount-image-up-mm 8.625 \
   --camera-pitch-trim-deg 5.4375 \
   --camera-lateral-mm 9.0 \
-  --camera-yaw-deg 3.375
+  --camera-yaw-deg 3.375 \
+  --view-clearance-margin-deg 3.2 \
+  --lens-recess-mm 3.0 \
+  --view-brace-thickness-mm 12.0
 ```
 
-The checked-in meshes are watertight single components, preserve both original
-arm passages and both D435i passages, and need no camera-envelope relief cut.
-See the [mount README](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/README.md).
+The checked-in V2 meshes retain the exact optimized optical pose. They are
+watertight single components, preserve both original arm passages and both
+D435i passages, need no camera-envelope relief cut, and clear a D435i RGB cone
+expanded by 3.2° at every edge within Boolean numerical tolerance. A
+first-person render of each actual STL from the assumed optical center reports
+0.000% mount pixels. See the
+[mount README](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/README.md).
 
 ## Why pose-only cannot be pixel-identical at all depths
 

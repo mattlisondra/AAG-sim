@@ -29,6 +29,7 @@ from check_official_bracket_fit import (
     EXPECTED_REFERENCE_SHA256,
     adapter_to_bracket_transform,
     camera_envelope,
+    camera_view_frustum,
     collision_volume,
     file_sha256,
 )
@@ -42,6 +43,65 @@ from d435i_yam_wrist_adapter import (
 )
 
 ARM_HOLE_YZ = ((-46.0, 5.0), (-6.0, 5.0))
+
+
+def rectangular_beam(
+    start: tuple[float, float, float],
+    end: tuple[float, float, float],
+    thickness_mm: float,
+) -> trimesh.Trimesh:
+    """Create a square-section beam between two adapter-frame points."""
+    start_point = np.asarray(start, dtype=float)
+    end_point = np.asarray(end, dtype=float)
+    delta = end_point - start_point
+    length = float(np.linalg.norm(delta))
+    if length <= 0.0 or thickness_mm <= 0.0:
+        raise ValueError("beam length and thickness must be positive")
+    beam = trimesh.creation.box(extents=[thickness_mm, thickness_mm, length])
+    beam.apply_transform(trimesh.geometry.align_vectors([0.0, 0.0, 1.0], delta))
+    beam.apply_translation((start_point + end_point) / 2.0)
+    return beam
+
+
+def view_clearance_braces(
+    side: str,
+    *,
+    thickness_mm: float,
+    lower_y: float = -46.0,
+    lower_z: float = -12.0,
+) -> list[trimesh.Trimesh]:
+    """Return an intentionally stout outboard truss routed below the RGB view."""
+    if side == "left":
+        support_x = (44.0, 56.0)
+        source_x = 18.0
+        outer_x = 62.0
+    elif side == "right":
+        support_x = (-42.0, -30.0)
+        # The source bracket is asymmetric and carries much more material on
+        # +X at the below-view anchor height. Reach across that solid web for
+        # a broad fusion patch before turning outboard toward the two rails.
+        source_x = 18.0
+        outer_x = -48.0
+    else:
+        raise ValueError("side must be 'left' or 'right'")
+
+    carrier_y = 8.0
+    carrier_z = -68.0
+    return [
+        rectangular_beam(
+            (source_x, lower_y, lower_z),
+            (outer_x, lower_y, lower_z),
+            thickness_mm,
+        ),
+        *[
+            rectangular_beam(
+                (x, lower_y, lower_z),
+                (x, carrier_y, carrier_z),
+                thickness_mm,
+            )
+            for x in support_x
+        ],
+    ]
 
 
 def through_hole_probe(
@@ -143,6 +203,9 @@ def build_one(
     camera_lateral_mm: float,
     camera_yaw_deg: float,
     camera_clearance_relief_mm: float,
+    view_clearance_margin_deg: float,
+    lens_recess_mm: float,
+    view_brace_thickness_mm: float,
 ) -> None:
     sign = -1 if side == "left" else 1
     carrier = setback_mount(
@@ -183,9 +246,10 @@ def build_one(
         working_bracket = trimesh.boolean.difference([bracket, relief], engine="manifold")
         if working_bracket is None or working_bracket.is_empty:
             raise RuntimeError(f"{side}: camera-clearance relief removed the bracket")
-        if not working_bracket.is_watertight or len(
-            working_bracket.split(only_watertight=False)
-        ) != 1:
+        if (
+            not working_bracket.is_watertight
+            or len(working_bracket.split(only_watertight=False)) != 1
+        ):
             raise RuntimeError(f"{side}: camera-clearance relief split the bracket")
         removed_volume = float(bracket.volume - working_bracket.volume)
 
@@ -196,6 +260,114 @@ def build_one(
     full_mount = trimesh.boolean.union([working_bracket, carrier_mesh], engine="manifold")
     if full_mount is None or full_mount.is_empty:
         raise RuntimeError(f"{side}: mesh union failed")
+    view_intrusion_removed = 0.0
+    view_brace_volume = 0.0
+    view_clearance: trimesh.Trimesh | None = None
+    if view_clearance_margin_deg > 0.0:
+        view_clearance = camera_view_frustum(
+            side,
+            reference_distance_mm=reference_distance_mm,
+            match_distance_mm=match_distance_mm,
+            view_down_angle_deg=view_down_angle_deg,
+            camera_mount_image_up_mm=camera_mount_image_up_mm,
+            camera_pitch_trim_deg=camera_pitch_trim_deg,
+            camera_lateral_mm=camera_lateral_mm,
+            camera_yaw_deg=camera_yaw_deg,
+            lens_recess_mm=lens_recess_mm,
+            angular_margin_deg=view_clearance_margin_deg,
+        )
+        view_clearance.apply_transform(transform)
+        cleared_mount = trimesh.boolean.difference([full_mount, view_clearance], engine="manifold")
+        if cleared_mount is None or cleared_mount.is_empty:
+            raise RuntimeError(f"{side}: RGB view clearance removed the mount")
+        view_intrusion_removed = float(full_mount.volume - cleared_mount.volume)
+
+        cleared_components = sorted(
+            cleared_mount.split(only_watertight=False),
+            key=lambda component: component.volume,
+            reverse=True,
+        )
+        if len(cleared_components) < 2:
+            raise RuntimeError(
+                f"{side}: expected the view cut to leave two functional bodies, "
+                f"got {len(cleared_components)}"
+            )
+        # The optical-tunnel cut can leave small detached scraps of the former
+        # central support. They are intentionally omitted from the print; V2
+        # reconnects the two functional bodies with a new outboard truss.
+        discarded_view_scraps = float(sum(component.volume for component in cleared_components[2:]))
+        cleared_components = cleared_components[:2]
+        cleared_mount = trimesh.util.concatenate(cleared_components)
+
+        routes: list[
+            tuple[
+                float,
+                float,
+                float,
+                list[trimesh.Trimesh],
+                list[list[float]],
+            ]
+        ] = []
+        for lower_y, lower_z in (
+            (-46.0, -12.0),
+            (-52.0, -12.0),
+            (-40.0, -12.0),
+            (-46.0, -20.0),
+            (-52.0, -20.0),
+            (-40.0, -20.0),
+            (-34.0, -20.0),
+            (-52.0, -4.0),
+            (-46.0, -4.0),
+            (-40.0, -4.0),
+            (-34.0, -4.0),
+        ):
+            candidate = view_clearance_braces(
+                side,
+                thickness_mm=view_brace_thickness_mm,
+                lower_y=lower_y,
+                lower_z=lower_z,
+            )
+            for brace in candidate:
+                brace.apply_transform(transform)
+            contacts = [
+                [collision_volume(brace, component) for component in cleared_components]
+                for brace in candidate
+            ]
+            view_contacts = [collision_volume(brace, view_clearance) for brace in candidate]
+            touches_first = any(row[0] > 0.1 for row in contacts)
+            touches_second = any(row[1] > 0.1 for row in contacts)
+            if touches_first and touches_second and max(view_contacts) <= 0.01:
+                contact_first = sum(row[0] for row in contacts)
+                contact_second = sum(row[1] for row in contacts)
+                routes.append(
+                    (
+                        min(contact_first, contact_second),
+                        lower_y,
+                        lower_z,
+                        candidate,
+                        contacts,
+                    )
+                )
+        if not routes:
+            raise RuntimeError(f"{side}: no view-safe brace route connects both mount bodies")
+        _, lower_y, lower_z, braces, brace_contacts = max(
+            routes,
+            key=lambda route: route[0],
+        )
+        print(
+            f"{side}: view-brace route y={lower_y:.1f}, z={lower_z:.1f}, "
+            f"contacts={brace_contacts}, discarded_scraps={discarded_view_scraps:.3f} mm^3"
+        )
+        view_brace_volume = float(sum(brace.volume for brace in braces))
+        full_mount = trimesh.boolean.union([cleared_mount, *braces], engine="manifold")
+        if full_mount is None or full_mount.is_empty:
+            raise RuntimeError(f"{side}: failed to union view-clearance braces")
+        # Trim numerical or fillet-edge intrusion after union so the stated
+        # angular margin is a hard final-mesh guarantee.
+        full_mount = trimesh.boolean.difference([full_mount, view_clearance], engine="manifold")
+        if full_mount is None or full_mount.is_empty:
+            raise RuntimeError(f"{side}: final RGB view trim removed the mount")
+
     components = full_mount.split(only_watertight=False)
     if not full_mount.is_watertight or len(components) != 1:
         raise RuntimeError(
@@ -229,7 +401,29 @@ def build_one(
     camera.apply_transform(transform)
     camera_collision = collision_volume(full_mount, camera)
 
+    nominal_view = camera_view_frustum(
+        side,
+        reference_distance_mm=reference_distance_mm,
+        match_distance_mm=match_distance_mm,
+        view_down_angle_deg=view_down_angle_deg,
+        camera_mount_image_up_mm=camera_mount_image_up_mm,
+        camera_pitch_trim_deg=camera_pitch_trim_deg,
+        camera_lateral_mm=camera_lateral_mm,
+        camera_yaw_deg=camera_yaw_deg,
+        lens_recess_mm=lens_recess_mm,
+        angular_margin_deg=0.0,
+    )
+    nominal_view.apply_transform(transform)
+    view_collision = collision_volume(full_mount, nominal_view)
+    margin_view_collision = (
+        collision_volume(full_mount, view_clearance)
+        if view_clearance is not None
+        else view_collision
+    )
+
     all_clearance = arm_hole_collisions + camera_hole_collisions + [camera_collision]
+    if view_clearance_margin_deg > 0.0:
+        all_clearance.extend([view_collision, margin_view_collision])
     if max(all_clearance) > 0.01:
         raise RuntimeError(
             f"{side}: blocked through-hole or camera-envelope overlap: {all_clearance}"
@@ -240,8 +434,12 @@ def build_one(
     print(
         f"{side}: fusion={fusion_volume:.3f} mm^3, volume={full_mount.volume:.3f} mm^3, "
         f"relief_removed={removed_volume:.3f} mm^3, "
+        f"view_removed={view_intrusion_removed:.3f} mm^3, "
+        f"view_braces={view_brace_volume:.3f} mm^3, "
         f"faces={len(full_mount.faces)}, arm_holes={arm_hole_collisions}, "
-        f"camera_holes={camera_hole_collisions}, camera={camera_collision:.6f} mm^3"
+        f"camera_holes={camera_hole_collisions}, camera={camera_collision:.6f} mm^3, "
+        f"nominal_view={view_collision:.6f} mm^3, "
+        f"margin_view={margin_view_collision:.6f} mm^3"
     )
 
 
@@ -279,9 +477,26 @@ def main() -> int:
         default=0.0,
         help="experimental clearance subtracted from the replaceable source bracket",
     )
+    parser.add_argument(
+        "--view-clearance-margin-deg",
+        type=float,
+        default=0.0,
+        help="clear the RGB frustum plus this angular margin at every image edge",
+    )
+    parser.add_argument(
+        "--lens-recess-mm",
+        type=float,
+        default=3.0,
+        help="conservative RGB optical-center recess behind the housing front plane",
+    )
+    parser.add_argument("--view-brace-thickness-mm", type=float, default=12.0)
     args = parser.parse_args()
     if args.camera_clearance_relief_mm < 0.0:
         raise SystemExit("--camera-clearance-relief-mm must be non-negative")
+    if args.view_clearance_margin_deg < 0.0:
+        raise SystemExit("--view-clearance-margin-deg must be non-negative")
+    if args.view_brace_thickness_mm <= 0.0:
+        raise SystemExit("--view-brace-thickness-mm must be positive")
 
     actual_sha = file_sha256(args.bracket_stl)
     if actual_sha != EXPECTED_REFERENCE_SHA256:
@@ -305,6 +520,9 @@ def main() -> int:
         "camera_lateral_mm": args.camera_lateral_mm,
         "camera_yaw_deg": args.camera_yaw_deg,
         "camera_clearance_relief_mm": args.camera_clearance_relief_mm,
+        "view_clearance_margin_deg": args.view_clearance_margin_deg,
+        "lens_recess_mm": args.lens_recess_mm,
+        "view_brace_thickness_mm": args.view_brace_thickness_mm,
     }
     build_one(side="left", **common)
     build_one(side="right", **common)

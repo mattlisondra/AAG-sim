@@ -47,6 +47,24 @@ uv run --with vtk python cad/render_previews.py \
   cad/generated/official-bracket-derived
 ```
 
+The current view-clear V2 candidate is in
+[`generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2`](generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/README.md).
+It preserves the raw-RGB pose while subtracting an RGB optical tunnel and
+adding a thick outboard truss. Audit actual STL visibility from the assumed
+D435i optical center with:
+
+```bash
+uv run --with vtk --with trimesh --with manifold3d \
+  python cad/render_mount_camera_view.py \
+  cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2 \
+  --match-distance-mm 188.717909 \
+  --camera-mount-image-up-mm 8.625 \
+  --camera-pitch-trim-deg 5.4375 \
+  --camera-lateral-mm 9.0 \
+  --camera-yaw-deg 3.375 \
+  --lens-recess-mm 3.0
+```
+
 ## Camera geometry
 
 The default mount targets a 166.72 mm D435i RGB lens-to-grasp distance. It:

@@ -21,9 +21,7 @@ except ImportError as exc:  # pragma: no cover - CAD-only environment
     ) from exc
 
 
-EXPECTED_REFERENCE_SHA256 = (
-    "c912eb55577ce157fb8b2cc11cb7baf350383baba564007fec4ce0a7b8ac0de2"
-)
+EXPECTED_REFERENCE_SHA256 = "c912eb55577ce157fb8b2cc11cb7baf350383baba564007fec4ce0a7b8ac0de2"
 
 # Local frame recovered from the published bracket's planar D405 contact face.
 # X runs across the camera, Y is image-up, and Z points out toward the scene.
@@ -38,6 +36,8 @@ D435I_BODY = np.array([90.0, 25.0, 25.05])
 D435I_BODY_CENTER_OFFSET = 23.5
 D405_BODY_DEPTH = 23.0
 D435I_BODY_DEPTH = 25.05
+D435I_COLOR_HFOV_DEG = 69.4
+D435I_COLOR_VFOV_DEG = 42.5
 DEFAULT_REFERENCE_DISTANCE = 116.9619168789568
 DEFAULT_MATCH_DISTANCE = 166.71790944273448
 DEFAULT_VIEW_DOWN_ANGLE_DEG = 20.307327540589718
@@ -58,9 +58,7 @@ def adapter_to_bracket_transform() -> np.ndarray:
         CONTACT_PLANE_OFFSET - BRACKET_PLANE_NORMAL_BACK @ INTERFACE_SEED_POINT
     )
     transform = np.eye(4)
-    transform[:3, :3] = np.column_stack(
-        [LOCAL_X_IN_BRACKET, LOCAL_Y_IN_BRACKET, normal_out]
-    )
+    transform[:3, :3] = np.column_stack([LOCAL_X_IN_BRACKET, LOCAL_Y_IN_BRACKET, normal_out])
     transform[:3, 3] = origin
     return transform
 
@@ -118,6 +116,132 @@ def camera_envelope(
         )
     )
     return camera
+
+
+def camera_optical_transform(
+    side: str,
+    *,
+    reference_distance_mm: float,
+    match_distance_mm: float,
+    view_down_angle_deg: float,
+    camera_mount_image_up_mm: float,
+    camera_pitch_trim_deg: float = 0.0,
+    camera_lateral_mm: float = 0.0,
+    camera_yaw_deg: float = 0.0,
+    lens_recess_mm: float = 0.0,
+) -> np.ndarray:
+    """Return the D435i RGB camera-to-adapter transform.
+
+    Camera coordinates use +X image-right, +Y image-up, and +Z forward.  A
+    positive ``lens_recess_mm`` moves the assumed optical center behind the
+    housing front plane, making the near-field visibility check conservative.
+    """
+    if side not in {"left", "right"}:
+        raise ValueError("side must be 'left' or 'right'")
+    if lens_recess_mm < 0.0 or lens_recess_mm >= D435I_BODY_DEPTH:
+        raise ValueError("lens_recess_mm must be in [0, D435I body depth)")
+    sign = -1.0 if side == "left" else 1.0
+    extra_ray = match_distance_mm - reference_distance_mm
+    view_down_angle = math.radians(view_down_angle_deg)
+    optical_shift = extra_ray * math.cos(view_down_angle)
+    ideal_image_up = extra_ray * math.sin(view_down_angle)
+    rear_z = (D405_BODY_DEPTH - D435I_BODY_DEPTH) - optical_shift
+    aim = math.atan2(
+        camera_mount_image_up_mm - ideal_image_up,
+        match_distance_mm,
+    ) + math.radians(camera_pitch_trim_deg)
+
+    pitch_pivot = [0.0, camera_mount_image_up_mm, rear_z]
+    pitch = trimesh.transformations.rotation_matrix(aim, [1.0, 0.0, 0.0], pitch_pivot)
+    yaw_pivot = [sign * camera_lateral_mm, camera_mount_image_up_mm, rear_z]
+    yaw = trimesh.transformations.rotation_matrix(
+        math.radians(sign * camera_yaw_deg),
+        [0.0, 1.0, 0.0],
+        yaw_pivot,
+    )
+    posed = yaw @ pitch
+    optical_center = np.array(
+        [
+            sign * camera_lateral_mm,
+            camera_mount_image_up_mm,
+            rear_z + D435I_BODY_DEPTH - lens_recess_mm,
+            1.0,
+        ]
+    )
+    transform = np.eye(4)
+    transform[:3, :3] = posed[:3, :3]
+    transform[:3, 3] = (posed @ optical_center)[:3]
+    return transform
+
+
+def camera_view_frustum(
+    side: str,
+    *,
+    reference_distance_mm: float,
+    match_distance_mm: float,
+    view_down_angle_deg: float,
+    camera_mount_image_up_mm: float,
+    camera_pitch_trim_deg: float = 0.0,
+    camera_lateral_mm: float = 0.0,
+    camera_yaw_deg: float = 0.0,
+    lens_recess_mm: float = 0.0,
+    angular_margin_deg: float = 0.0,
+    near_mm: float = 0.25,
+    far_mm: float = 250.0,
+) -> trimesh.Trimesh:
+    """Build a rectangular D435i RGB visibility volume in adapter coordinates."""
+    if angular_margin_deg < 0.0:
+        raise ValueError("angular_margin_deg must be non-negative")
+    if not 0.0 < near_mm < far_mm:
+        raise ValueError("frustum distances must satisfy 0 < near < far")
+    half_h = math.radians(D435I_COLOR_HFOV_DEG / 2.0 + angular_margin_deg)
+    half_v = math.radians(D435I_COLOR_VFOV_DEG / 2.0 + angular_margin_deg)
+    if half_h >= math.pi / 2.0 or half_v >= math.pi / 2.0:
+        raise ValueError("angular margin makes the frustum invalid")
+
+    def corners(distance: float) -> list[list[float]]:
+        x = distance * math.tan(half_h)
+        y = distance * math.tan(half_v)
+        return [
+            [-x, -y, distance],
+            [x, -y, distance],
+            [x, y, distance],
+            [-x, y, distance],
+        ]
+
+    vertices = np.asarray(corners(near_mm) + corners(far_mm), dtype=float)
+    faces = np.asarray(
+        [
+            [0, 2, 1],
+            [0, 3, 2],
+            [4, 5, 6],
+            [4, 6, 7],
+            [0, 4, 7],
+            [0, 7, 3],
+            [1, 2, 6],
+            [1, 6, 5],
+            [0, 1, 5],
+            [0, 5, 4],
+            [3, 7, 6],
+            [3, 6, 2],
+        ],
+        dtype=np.int64,
+    )
+    frustum = trimesh.Trimesh(vertices=vertices, faces=faces, process=True)
+    frustum.apply_transform(
+        camera_optical_transform(
+            side,
+            reference_distance_mm=reference_distance_mm,
+            match_distance_mm=match_distance_mm,
+            view_down_angle_deg=view_down_angle_deg,
+            camera_mount_image_up_mm=camera_mount_image_up_mm,
+            camera_pitch_trim_deg=camera_pitch_trim_deg,
+            camera_lateral_mm=camera_lateral_mm,
+            camera_yaw_deg=camera_yaw_deg,
+            lens_recess_mm=lens_recess_mm,
+        )
+    )
+    return frustum
 
 
 def main() -> int:

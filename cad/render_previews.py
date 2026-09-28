@@ -9,7 +9,7 @@ from pathlib import Path
 import vtk
 
 
-def render(stl: Path, output: Path) -> tuple[int, int]:
+def render(stl: Path, output: Path) -> tuple[int, int, tuple[float, ...] | None]:
     reader = vtk.vtkSTLReader()
     reader.SetFileName(str(stl))
     reader.Update()
@@ -68,7 +68,9 @@ def render(stl: Path, output: Path) -> tuple[int, int]:
     writer.Write()
 
     mesh = clean.GetOutput()
-    return mesh.GetNumberOfCells(), edges.GetOutput().GetNumberOfCells()
+    bad_edges = edges.GetOutput()
+    bad_bounds = bad_edges.GetBounds() if bad_edges.GetNumberOfCells() else None
+    return mesh.GetNumberOfCells(), bad_edges.GetNumberOfCells(), bad_bounds
 
 
 def main() -> int:
@@ -82,8 +84,11 @@ def main() -> int:
     args = parser.parse_args()
     failed = False
     for stl in sorted(args.directory.glob("*.stl")):
-        triangles, bad_edges = render(stl, stl.with_suffix(".png"))
-        print(f"{stl.name}: triangles={triangles}, boundary/non-manifold edges={bad_edges}")
+        triangles, bad_edges, bad_bounds = render(stl, stl.with_suffix(".png"))
+        print(
+            f"{stl.name}: triangles={triangles}, boundary/non-manifold edges={bad_edges}, "
+            f"bad-edge bounds={bad_bounds}"
+        )
         failed |= bad_edges != 0
     return 1 if failed else 0
 

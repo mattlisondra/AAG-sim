@@ -187,7 +187,8 @@ The repository includes:
 
 - one-piece left/right replacement mounts that retain the official bracket's
   through-holes for attachment to the YAM wrists and add complete D435i screw
-  passages;
+  passages; the V2 pair also clears a conservative RGB view cone and uses a
+  thick outboard truss;
 - a parametric carrier generator, reproducible mesh-fusion/checking script,
   and separate interface gauges;
 - `scripts/query_realsense_intrinsics.py` for the two physical serial numbers;
@@ -214,7 +215,9 @@ bash scripts/compare_wrist_cameras.sh \
 Across both wrists and seeds 42–44, the pose-only search reached 87.4% mean
 finger IoU and 82.9% task-object IoU while reducing full-frame RGB MAE. The
 corresponding printable pair is under
-[`cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized`](cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/README.md).
+[`cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2`](cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/README.md).
+Unlike V1, V2 was also rendered from the assumed physical D435i RGB optical
+center and reports 0.000% mount coverage in both nominal 640 × 360 views.
 It remains a simulation-derived fit-check candidate; use measured intrinsics
 and stationary real-camera pairs before robot motion.
 
@@ -224,7 +227,9 @@ for the saved RGB outputs, metrics, current sim-derived result, and its limits.
 Read [D435i wrist adapter and view matching](docs/D435I_WRIST_ADAPTER.md) before
 printing. The preferred full mount directly incorporates the supplied official
 i2rt YAM D405 bracket geometry, retains its original 40 mm-pitch arm passages,
-and is validated as one watertight component with two open D435i passages. The
+is validated as one watertight component with two open D435i passages, and
+keeps the nominal and 3.2°-per-edge expanded RGB cones clear within the
+builder's `0.01 mm³` numerical tolerance. The
 unmodified reference STL is not redistributed. The derived full-mount meshes
 are clearly isolated under the source model's CC BY-NC-SA 4.0 license. Print
 the small 45 mm gauge and perform the documented stationary physical

@@ -13,9 +13,11 @@ The checked-in pose-optimized replacement mounts:
   through-holes;
 - add two complete 45 mm-pitch D435i M3 passages;
 - place the D435i RGB optical axis using the pose found in ManiSkill; and
-- provide separate left/right variants so the 90 mm housing extends outboard.
+- provide separate left/right variants so the 90 mm housing extends outboard;
+- remove all mesh from a conservative RGB optical tunnel; and
+- reconnect the mount using a 12 mm outboard lower tie and two diagonal rails.
 
-![Pose-optimized left replacement mount](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/yam_d435i_full_wrist_mount_left.png)
+![View-clear V2 left replacement mount](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/yam_d435i_full_wrist_mount_left.png)
 
 This is an experimental research fit-check candidate. The simulator result is
 useful for choosing a first print, but it is not a structural certification or
@@ -95,13 +97,34 @@ to conceal that limitation.
 See [the simulation comparison guide](SIM_CAMERA_COMPARISON.md) for the exact
 command, poses, objective, and outputs.
 
+## Why V2 is the printable recommendation
+
+The scene-camera simulation does not render the printed mount. A separate
+first-person render of the V1 STL from the assumed D435i RGB optical center
+found that mount geometry could cover 42.3% of the left image and 64.1% of the
+right image. Those values do not describe the optimized scene alignment; they
+identify a physical bracket-occlusion problem that the earlier visualization
+could not reveal.
+
+V2 preserves the exact V1 camera pose, subtracts a rectangular optical volume
+based on the D435i's 69.4° × 42.5° nominal RGB FOV, assumes the optical center
+is recessed 3 mm behind the housing front, and adds 3.2° clearance at every
+image edge. It then routes a bulky truss outside that expanded cone. Boolean
+checks report zero nominal-cone intersection and less than `0.00007 mm³`
+expanded-cone intersection (numerical tolerance), while first-person 640 × 360
+renders report 0.000% mount pixels on both sides.
+
+These are geometry guarantees under stated nominal assumptions. Factory
+intrinsics, lens position, print warp, fasteners, and cables still require a
+stationary check with the real cameras.
+
 ## Printable mounts
 
 Use these files:
 
-- [`yam_d435i_full_wrist_mount_left.stl`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/yam_d435i_full_wrist_mount_left.stl)
-- [`yam_d435i_full_wrist_mount_right.stl`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/yam_d435i_full_wrist_mount_right.stl)
-- [`parameters.json`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/parameters.json)
+- [`yam_d435i_full_wrist_mount_left.stl`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/yam_d435i_full_wrist_mount_left.stl)
+- [`yam_d435i_full_wrist_mount_right.stl`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/yam_d435i_full_wrist_mount_right.stl)
+- [`parameters.json`](../cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2/parameters.json)
 - [`d435i_camera_interface_45mm_coupon.stl`](../cad/generated/d435i_camera_interface_45mm_coupon.stl), a cheap two-hole gauge
 
 The left/right labels are candidate assignments. With the arms powered off,
@@ -115,12 +138,15 @@ uv run --with cadquery --with trimesh --with manifold3d \
   --with scipy --with networkx \
   python cad/build_full_d435i_wrist_mount.py \
   '/absolute/path/to/camera+bracket(for+D405)+-+camera+bracket(for+D405).stl' \
-  --output-dir cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized \
+  --output-dir cad/generated/official-bracket-derived/molmoact2-raw-rigid-view-clear-v2 \
   --match-distance-mm 188.717909 \
   --camera-mount-image-up-mm 8.625 \
   --camera-pitch-trim-deg 5.4375 \
   --camera-lateral-mm 9.0 \
-  --camera-yaw-deg 3.375
+  --camera-yaw-deg 3.375 \
+  --view-clearance-margin-deg 3.2 \
+  --lens-recess-mm 3.0 \
+  --view-brace-thickness-mm 12.0
 ```
 
 Automated validation reported:
@@ -129,8 +155,10 @@ Automated validation reported:
 - zero boundary/non-manifold edges;
 - both original arm through-passages unobstructed;
 - both D435i screw passages unobstructed;
-- nominal camera-envelope overlap below `0.00014 mm³`; and
-- no relief cut from the source bracket.
+- nominal camera-envelope overlap below `0.00014 mm³`;
+- zero nominal and less than `0.00007 mm³` expanded RGB-frustum intersection;
+- 0.000% mount coverage in both 640 × 360 optical-view renders; and
+- no camera-envelope relief cut from the source bracket.
 
 These checks validate mesh topology and nominal clearance only. They do not
 validate printed strength, tolerances, screw-head access, the complete robot
@@ -145,9 +173,14 @@ stack is about 6 mm, leaving roughly 1–2 mm camera engagement depending on the
 washer. Measure the real stack, stay below the D435i's 3 mm insertion limit,
 and do not exceed its torque recommendation.
 
-For a first fit-check print, PETG or PA-CF, 0.2 mm layers, five walls, six
-top/bottom layers, and at least 40% gyroid infill are reasonable starting
-settings. Print the 45 mm hole gauge before either complete mount.
+For a first fit-check print, PETG or PA-CF, 0.2 mm layers, at least five walls,
+six top/bottom layers, and 40–60% gyroid infill are reasonable starting
+settings. The V2 rails are 12 × 12 mm with substantial Boolean fusion patches,
+but this is not an FEA or load-test result. Orient for continuous diagonal
+rails, inspect the sliced preview, and enable slicer support under unsupported
+parts of the rails, lower tie, and camera carrier. Print the 45 mm hole gauge
+before either complete mount, then load-test a complete print with a dummy
+camera mass and the robot unpowered.
 
 ## RealSense intrinsics and raw camera server
 

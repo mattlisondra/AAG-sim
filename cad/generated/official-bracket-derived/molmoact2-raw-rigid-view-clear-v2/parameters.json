@@ -1,0 +1,112 @@
+{
+  "status": "experimental fit-check candidate; no structural certification",
+  "reference_profile": "molmoact2-reference",
+  "candidate_profile": "d435i-wrist-cad-raw-nominal",
+  "comparison_mode": "raw",
+  "image_transform": "none",
+  "seeds": [42, 43, 44],
+  "cameras": ["left_cam", "right_cam"],
+  "mount": {
+    "version": 2,
+    "match_distance_mm": 188.71790944273448,
+    "camera_mount_image_up_mm": 8.625,
+    "pitch_trim_deg": 5.4375,
+    "mirrored_lateral_mm": 9.0,
+    "mirrored_yaw_deg": 3.375,
+    "camera_clearance_relief_mm": 0.0,
+    "view_brace_thickness_mm": 12.0,
+    "selected_brace_route_adapter_frame_mm": {
+      "lower_y": -34.0,
+      "lower_z": -4.0
+    }
+  },
+  "view_clearance": {
+    "d435i_nominal_rgb_fov_deg": {
+      "horizontal": 69.4,
+      "vertical": 42.5
+    },
+    "assumed_lens_recess_mm": 3.0,
+    "angular_margin_per_edge_deg": 3.2,
+    "cleared_rgb_fov_deg": {
+      "horizontal": 75.8,
+      "vertical": 48.9
+    },
+    "nominal_frustum_overlap_mm3": {
+      "left": 0.0,
+      "right": 0.0
+    },
+    "expanded_frustum_overlap_mm3": {
+      "left": 0.000063,
+      "right": 0.000026
+    },
+    "first_person_mount_pixel_coverage_640x360": {
+      "left": 0.0,
+      "right": 0.0
+    }
+  },
+  "structural_geometry": {
+    "description": "one lower square tie plus two outboard square diagonal rails",
+    "brace_section_mm": [12.0, 12.0],
+    "fusion_contact_mm3": {
+      "left": {
+        "source_side": 854.946,
+        "camera_side_rail_1": 629.836,
+        "camera_side_rail_2": 615.969
+      },
+      "right": {
+        "source_side": 2190.769,
+        "camera_side_rail_1": 608.468,
+        "camera_side_rail_2": 607.367
+      }
+    },
+    "finite_element_analysis_performed": false,
+    "physical_load_test_performed": false
+  },
+  "view_cut_discarded_scraps_mm3": {
+    "left": 0.0,
+    "right": 1031.526
+  },
+  "simulated_link_6_optical_poses_wxyz": {
+    "left_cam": {
+      "position_m": [0.009000000980739775, 0.13111745196492705, 0.0060324825676369076],
+      "quaternion_wxyz": [0.5955868368220625, -0.34035409606005046, -0.3610171650579377, -0.6317452141749598]
+    },
+    "right_cam": {
+      "position_m": [-0.00899999901926022, 0.1311174520960888, 0.006032482340458061],
+      "quaternion_wxyz": [0.6317452055394335, -0.36101716002108847, -0.3403541014026893, -0.5955868459818559]
+    }
+  },
+  "aggregate_metrics": {
+    "initial_score": 0.4996019433878093,
+    "optimized_score": 0.130730307487488,
+    "initial_finger_iou": 0.27318718381112983,
+    "optimized_finger_iou": 0.8738917559878258,
+    "initial_task_iou": 0.6665962298683661,
+    "optimized_task_iou": 0.8294101987422612,
+    "initial_global_rgb_mae": 0.06222102977335453,
+    "optimized_global_rgb_mae": 0.050827980041503906
+  },
+  "mesh_validation": {
+    "left": {
+      "watertight_components": 1,
+      "faces": 10950,
+      "volume_mm3": 59596.410,
+      "solid_petg_mass_estimate_g": 75.687,
+      "camera_envelope_overlap_mm3": 0.000129
+    },
+    "right": {
+      "watertight_components": 1,
+      "faces": 7764,
+      "volume_mm3": 54816.329,
+      "solid_petg_mass_estimate_g": 69.617,
+      "camera_envelope_overlap_mm3": 0.000132
+    },
+    "arm_and_camera_passages_unobstructed": true,
+    "boundary_or_nonmanifold_edges": 0
+  },
+  "generated_stl_sha256": {
+    "left": "b7add33ba46c1fbbad18ceeea917ff4b550f43999a6e31f9f398a2396e9763d1",
+    "right": "d5f7f11d5b695f4207d3d801ca3ee488af8f8bd1556c516932db79ce61bf388b"
+  },
+  "source_bracket_sha256": "c912eb55577ce157fb8b2cc11cb7baf350383baba564007fec4ce0a7b8ac0de2"
+}
