@@ -180,8 +180,8 @@ is calculated from each camera's factory intrinsics.
 
 The repository includes:
 
-- mirrored, parametric STEP/STL adapter candidates and a 20/45 mm hole-pitch
-  fit coupon;
+- side-specific, parametric STEP/STL adapter candidates plus separate 20 mm
+  YAM-bracket and 45 mm D435i two-hole fit gauges;
 - `aag-yam wrist-match-plan` for distance/crop calculation;
 - `scripts/query_realsense_intrinsics.py` for the two physical serial numbers;
 - `scripts/run_d435i_camera_server.py`, which preserves the existing YAM ZMQ
@@ -189,9 +189,11 @@ The repository includes:
 - a nominal simulator profile named `d435i-wrist-d405-match-nominal`.
 
 Read [D435i wrist adapter and view matching](docs/D435I_WRIST_ADAPTER.md) before
-printing. The camera dimensions are authoritative, but the surrounding I2RT
-bracket clearance is not public; print the coupon and perform a stationary
-fit/collision check first.
+printing. The design has been boolean-checked against the official i2rt YAM
+D405 bracket STL supplied through MakerWorld, including an approximate D435i
+housing envelope. The official bracket's source license is CC BY-NC-SA 4.0, so
+that reference STL is linked but not redistributed. Print the two small gauges
+and perform the documented stationary physical fit/collision check first.
 
 ## Five-scene AAG benchmark
 
