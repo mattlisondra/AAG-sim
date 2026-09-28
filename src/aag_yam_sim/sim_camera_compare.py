@@ -29,11 +29,11 @@ from .wrist_match import PinholeIntrinsics, WristMatchPlan, apply_match_plan, co
 
 WRIST_CAMERAS = ("left_cam", "right_cam")
 OPTIMIZATION_STEPS = {
-    "match_distance_mm": 4.0,
-    "camera_mount_image_up_mm": 3.0,
-    "pitch_trim_deg": 2.0,
-    "mirrored_lateral_mm": 3.0,
-    "mirrored_yaw_deg": 1.0,
+    "match_distance_mm": 16.0,
+    "camera_mount_image_up_mm": 6.0,
+    "pitch_trim_deg": 3.0,
+    "mirrored_lateral_mm": 6.0,
+    "mirrored_yaw_deg": 2.0,
     "crop_offset_x_px": 4.0,
     "crop_offset_y_px": 4.0,
 }
@@ -99,12 +99,6 @@ def mount_pose_from_parameters(
     down_angle = math.radians(view_down_angle_deg)
     optical_setback = extra_ray * math.cos(down_angle)
     ideal_image_up = extra_ray * math.sin(down_angle)
-    if parameters.camera_mount_image_up_mm < ideal_image_up:
-        raise ValueError(
-            "camera mount is below the crop-feasible ray: "
-            f"need at least {ideal_image_up:.3f} mm image-up"
-        )
-
     reference_q = np.asarray(reference_spec.quaternion_wxyz, dtype=float)
     reference_rotation = quaternion_matrix(reference_q)
     forward = reference_rotation[:, 0]
@@ -402,6 +396,7 @@ class ManiSkillCameraComparison:
         seeds: tuple[int, ...],
         shader_pack: str,
         reference_distance_mm: float,
+        comparison_mode: str,
     ) -> None:
         missing_asset = Path.home() / ".maniskill/data/assets/mani_skill2_ycb/info_pick_v0.json"
         if not missing_asset.is_file():
@@ -430,6 +425,7 @@ class ManiSkillCameraComparison:
         self.cameras = cameras
         self.seeds = seeds
         self.reference_distance_mm = reference_distance_mm
+        self.comparison_mode = comparison_mode
         links = self.env.unwrapped.agent.robot.links_map
         self.finger_ids = {
             "left_cam": tuple(
@@ -506,7 +502,7 @@ class ManiSkillCameraComparison:
         save_dir: Path | None = None,
     ) -> dict[str, Any]:
         per_view: list[dict[str, Any]] = []
-        plans: dict[str, WristMatchPlan] = {}
+        plans: dict[str, WristMatchPlan | None] = {}
         pose_details: dict[str, dict[str, Any]] = {}
         for uid in self.cameras:
             reference_spec = self.reference_profile.cameras[uid]
@@ -517,17 +513,20 @@ class ManiSkillCameraComparison:
                 reference_distance_mm=self.reference_distance_mm,
                 mirror_sign=-1 if uid == "left_cam" else 1,
             )
-            plan = compute_match_plan(
-                _profile_intrinsics(reference_spec),
-                _profile_intrinsics(candidate_spec),
-                reference_distance_mm=self.reference_distance_mm,
-                actual_distance_mm=parameters.match_distance_mm,
-            )
-            plan = _offset_match_plan(
-                plan,
-                parameters.crop_offset_x_px,
-                parameters.crop_offset_y_px,
-            )
+            if self.comparison_mode == "crop":
+                plan = compute_match_plan(
+                    _profile_intrinsics(reference_spec),
+                    _profile_intrinsics(candidate_spec),
+                    reference_distance_mm=self.reference_distance_mm,
+                    actual_distance_mm=parameters.match_distance_mm,
+                )
+                plan = _offset_match_plan(
+                    plan,
+                    parameters.crop_offset_x_px,
+                    parameters.crop_offset_y_px,
+                )
+            else:
+                plan = None
             plans[uid] = plan
             pose_details[uid] = {
                 **details,
@@ -550,11 +549,15 @@ class ManiSkillCameraComparison:
             for uid in self.cameras:
                 reference = self.reference_frames[(seed, uid)]
                 raw = raw_frames[uid]
-                matched = apply_match_plan(raw["rgb"], plans[uid], backend="numpy")
-                matched_segmentation = _apply_match_plan_nearest(
-                    raw["segmentation"],
-                    plans[uid],
-                )
+                if plans[uid] is None:
+                    matched = raw["rgb"]
+                    matched_segmentation = raw["segmentation"]
+                else:
+                    matched = apply_match_plan(raw["rgb"], plans[uid], backend="numpy")
+                    matched_segmentation = _apply_match_plan_nearest(
+                        raw["segmentation"],
+                        plans[uid],
+                    )
                 global_metrics = image_metrics(reference["rgb"], matched)
                 focus_metrics = task_alignment_metrics(
                     reference["rgb"],
@@ -564,10 +567,26 @@ class ManiSkillCameraComparison:
                     finger_ids=self.finger_ids[uid],
                     task_ids=self.task_ids,
                 )
+                task_score = focus_metrics.pop("score")
+                # A raw-view match has to preserve both manipulation geometry and
+                # the full scene. Every term is normalized to approximately 0..1.
+                finger_loss = 1.0 - focus_metrics["finger_iou"]
+                task_loss = 1.0 - focus_metrics["task_iou"]
+                score = (
+                    0.45 * max(finger_loss, task_loss)
+                    + 0.15 * finger_loss
+                    + 0.15 * task_loss
+                    + 0.10 * global_metrics["mae"]
+                    + 0.05 * global_metrics["edge_mae"]
+                    + 0.07 * focus_metrics["focus_rgb_mae"]
+                    + 0.03 * focus_metrics["focus_edge_mae"]
+                )
                 per_view.append(
                     {
                         "seed": seed,
                         "camera": uid,
+                        "score": score,
+                        "task_score": task_score,
                         **focus_metrics,
                         "global_rgb_score": global_metrics["score"],
                         "global_rgb_mae": global_metrics["mae"],
@@ -619,7 +638,8 @@ class ManiSkillCameraComparison:
                         [
                             ("D405 reference", reference["rgb"]),
                             ("D435i raw", raw["rgb"]),
-                            ("D435i crop/resize", matched),
+                            ("50/50 overlay", overlay),
+                            ("absolute difference x4", difference),
                             ("red/cyan edge overlay", _edge_overlay(reference["rgb"], matched)),
                         ],
                     )
@@ -627,6 +647,7 @@ class ManiSkillCameraComparison:
         aggregate: dict[str, float] = {}
         for key in (
             "score",
+            "task_score",
             "finger_iou",
             "task_iou",
             "focus_rgb_mae",
@@ -644,7 +665,9 @@ class ManiSkillCameraComparison:
             "aggregate": aggregate,
             "per_view": per_view,
             "poses": pose_details,
-            "match_plans": {uid: plan.to_dict() for uid, plan in plans.items()},
+            "match_plans": {
+                uid: None if plan is None else plan.to_dict() for uid, plan in plans.items()
+            },
         }
 
 
@@ -680,7 +703,7 @@ def optimize_mount(
     current = initial
     best_report = evaluate(current)
     if best_report is None:
-        raise ValueError("initial mount parameters are not crop-feasible")
+        raise ValueError("initial mount parameters are invalid")
     dimensions = tuple((field, OPTIMIZATION_STEPS[field]) for field in fields)
     for pass_index in range(passes):
         for field, initial_step in dimensions:
@@ -721,11 +744,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--upstream-dir", type=Path, default=DEFAULT_UPSTREAM_DIR)
     parser.add_argument("--env-id", default="BimanualYAMPutEverythingInBox-v1")
-    parser.add_argument("--reference-profile", default="d405-wrist-physical-nominal")
+    parser.add_argument("--reference-profile", default="molmoact2-reference")
     parser.add_argument("--candidate-profile", default="d435i-wrist-cad-raw-nominal")
     parser.add_argument("--camera", action="append", choices=WRIST_CAMERAS, default=[])
     parser.add_argument("--seed", action="append", type=int, default=[])
     parser.add_argument("--shader-pack", default="minimal")
+    parser.add_argument(
+        "--comparison-mode",
+        choices=("raw", "crop"),
+        default="raw",
+        help="compare untouched D435i RGB (default) or the legacy crop/resize experiment",
+    )
     parser.add_argument(
         "--reference-distance-mm",
         type=float,
@@ -785,6 +814,7 @@ def main(argv: list[str] | None = None) -> int:
         seeds=seeds,
         shader_pack=args.shader_pack,
         reference_distance_mm=args.reference_distance_mm,
+        comparison_mode=args.comparison_mode,
     )
     try:
         baseline = comparison.evaluate(parameters, save_dir=run_dir / "baseline")
@@ -796,7 +826,14 @@ def main(argv: list[str] | None = None) -> int:
                 comparison,
                 parameters,
                 passes=args.optimization_passes,
-                fields=tuple(args.optimize_field or OPTIMIZATION_STEPS),
+                fields=tuple(
+                    args.optimize_field
+                    or (
+                        field
+                        for field in OPTIMIZATION_STEPS
+                        if args.comparison_mode == "crop" or not field.startswith("crop_offset")
+                    )
+                ),
             )
             best = comparison.evaluate(best_parameters, save_dir=run_dir / "optimized")
     finally:
@@ -820,15 +857,16 @@ def main(argv: list[str] | None = None) -> int:
         "cameras": cameras,
         "seeds": seeds,
         "shader_pack": args.shader_pack,
+        "comparison_mode": args.comparison_mode,
         "baseline": baseline,
         "optimized": best if args.optimize else None,
         "optimization_history": history,
         "recommended_cad_command": cad_command,
         "notes": [
-            "The primary score explicitly weights finger/task segmentation overlap; "
-            "lower score and higher finger/task IoU are better.",
-            "Global RGB metrics are retained as secondary diagnostics so background "
-            "texture cannot hide manipulation-geometry errors.",
+            "Raw mode feeds untouched D435i RGB to the comparison: no crop, resize, "
+            "warp, reprojection, hole filling, or inpainting is applied.",
+            "The primary score jointly weights finger/task segmentation overlap and "
+            "full-frame RGB/edge error; lower score and higher IoU are better.",
             f"Reference calibration: {reference_profile.calibration}. This remains a "
             "nominal profile unless loaded from measured device intrinsics.",
             "This compares ideal pinhole renders; real D405/D435i color, distortion, "

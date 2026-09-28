@@ -1,0 +1,34 @@
+{
+  "name": "d435i-wrist-raw-rigid-optimized",
+  "calibration": "nominal-d435i-intrinsics-and-sim-optimized-rigid-pose",
+  "description": "Raw nominal D435i RGB wrist cameras at the pose-only optimum against the pinned MolmoAct2 reference across both wrists and seeds 42-44. No image transform is applied. This is a simulation-derived experiment, not measured hardware calibration.",
+  "cameras": {
+    "top_cam": {
+      "model": "Intel RealSense D435i role (upstream nominal)",
+      "width": 640,
+      "height": 360,
+      "nominal_hfov_deg": 69.4,
+      "mount": "bimanual_base",
+      "position_m": [0.15, 0.0, 0.8],
+      "quaternion_wxyz": [0.7660444431189782, 0.0, 0.6427876096865391, 0.0]
+    },
+    "left_cam": {
+      "model": "Intel RealSense D435i RGB raw nominal at rigid-pose optimum",
+      "width": 640,
+      "height": 360,
+      "intrinsic": [[462.1386898729645, 0.0, 320.0], [0.0, 462.86923211847585, 180.0], [0.0, 0.0, 1.0]],
+      "mount": "left_link_6",
+      "position_m": [0.009000000980739775, 0.13111745196492705, 0.0060324825676369076],
+      "quaternion_wxyz": [0.5955868368220625, -0.34035409606005046, -0.3610171650579377, -0.6317452141749598]
+    },
+    "right_cam": {
+      "model": "Intel RealSense D435i RGB raw nominal at rigid-pose optimum",
+      "width": 640,
+      "height": 360,
+      "intrinsic": [[462.1386898729645, 0.0, 320.0], [0.0, 462.86923211847585, 180.0], [0.0, 0.0, 1.0]],
+      "mount": "right_link_6",
+      "position_m": [-0.00899999901926022, 0.1311174520960888, 0.006032482340458061],
+      "quaternion_wxyz": [0.6317452055394335, -0.36101716002108847, -0.3403541014026893, -0.5955868459818559]
+    }
+  }
+}

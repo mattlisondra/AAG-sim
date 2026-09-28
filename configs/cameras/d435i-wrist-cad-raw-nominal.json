@@ -1,7 +1,7 @@
 {
   "name": "d435i-wrist-cad-raw-nominal",
   "calibration": "nominal-d435i-fov-and-cad-derived-pose",
-  "description": "Raw nominal D435i RGB cameras at the pose implied by the full replacement wrist mount: 46.663 mm optical setback, 24.0 mm image-up rise, and 2.3123 deg downward pitch correction. No crop is baked into these intrinsics; the comparison and hardware adapters apply crop/resize explicitly.",
+  "description": "Legacy conservative raw nominal D435i RGB pose: 46.663 mm optical setback, 24.0 mm image-up rise, and 2.3123 deg downward pitch correction. No crop is baked into these intrinsics. Use d435i-wrist-raw-rigid-optimized for the current pose-only result.",
   "cameras": {
     "top_cam": {
       "model": "Intel RealSense D435i role (upstream nominal)",

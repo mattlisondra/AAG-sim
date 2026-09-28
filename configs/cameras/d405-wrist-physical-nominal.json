@@ -1,7 +1,7 @@
 {
   "name": "d405-wrist-physical-nominal",
   "calibration": "datasheet-nominal-d405-color-fov-at-upstream-pose",
-  "description": "Physical-D405 nominal color projection (84 x 58 degree FOV at 640 x 360) at the pinned upstream wrist pose. This is closer to released real D405 observations than ManiSkill's 87 degree square-pixel approximation, but it is still not a device calibration.",
+  "description": "Diagnostic projection obtained by independently converting the D405 datasheet's 84 x 58 degree FOV limits at 640 x 360. It is not a measured stream calibration and must not be treated as the exact released-observation geometry.",
   "cameras": {
     "top_cam": {
       "model": "Intel RealSense D435i role (upstream nominal)",

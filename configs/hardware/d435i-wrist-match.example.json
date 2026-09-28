@@ -1,4 +1,5 @@
 {
+  "image_transform": "raw",
   "reference": {
     "description": "Nominal D405 640x360 color stream. Replace with measured D405 intrinsics if available.",
     "width": 640,
@@ -21,9 +22,11 @@
     }
   },
   "notes": [
-    "The server queries each D435i factory color intrinsic at 640x360 and computes its own crop.",
+    "Raw is the recommended mode for the rigid-pose-optimized mount: the D435i RGB array is passed through unchanged.",
+    "Set image_transform to crop_resize only to reproduce the older single-plane crop experiment.",
+    "In crop_resize mode, the server queries each D435i factory color intrinsic at 640x360 and computes its crop.",
     "A per-wrist actual_working_distance_mm overrides the global value when separate mount lengths are used.",
-    "Set rotate_180 independently after checking a saved frame from each wrist.",
+    "Raw mode does not rotate pixels; install each camera in the required physical orientation. rotate_180 is used only by crop_resize mode.",
     "Measure lens-to-pinch distance along the camera-to-pinch ray; do not infer it from adapter thickness.",
     "Do not enable robot motion until the transformed jaw-tip framing has been compared with the released D405 examples."
   ]

@@ -1,0 +1,56 @@
+{
+  "status": "experimental fit-check candidate",
+  "reference_profile": "molmoact2-reference",
+  "candidate_profile": "d435i-wrist-cad-raw-nominal",
+  "comparison_mode": "raw",
+  "image_transform": "none",
+  "seeds": [42, 43, 44],
+  "cameras": ["left_cam", "right_cam"],
+  "mount": {
+    "match_distance_mm": 188.71790944273448,
+    "camera_mount_image_up_mm": 8.625,
+    "pitch_trim_deg": 5.4375,
+    "mirrored_lateral_mm": 9.0,
+    "mirrored_yaw_deg": 3.375,
+    "camera_clearance_relief_mm": 0.0
+  },
+  "simulated_link_6_optical_poses_wxyz": {
+    "left_cam": {
+      "position_m": [0.009000000980739775, 0.13111745196492705, 0.0060324825676369076],
+      "quaternion_wxyz": [0.5955868368220625, -0.34035409606005046, -0.3610171650579377, -0.6317452141749598]
+    },
+    "right_cam": {
+      "position_m": [-0.00899999901926022, 0.1311174520960888, 0.006032482340458061],
+      "quaternion_wxyz": [0.6317452055394335, -0.36101716002108847, -0.3403541014026893, -0.5955868459818559]
+    }
+  },
+  "aggregate_metrics": {
+    "initial_score": 0.4996019433878093,
+    "optimized_score": 0.130730307487488,
+    "initial_finger_iou": 0.27318718381112983,
+    "optimized_finger_iou": 0.8738917559878258,
+    "initial_task_iou": 0.6665962298683661,
+    "optimized_task_iou": 0.8294101987422612,
+    "initial_global_rgb_mae": 0.06222102977335453,
+    "optimized_global_rgb_mae": 0.050827980041503906
+  },
+  "mesh_validation": {
+    "left": {
+      "watertight_components": 1,
+      "faces": 12044,
+      "camera_envelope_overlap_mm3": 0.000128
+    },
+    "right": {
+      "watertight_components": 1,
+      "faces": 12038,
+      "camera_envelope_overlap_mm3": 0.000133
+    },
+    "arm_and_camera_passages_unobstructed": true,
+    "boundary_or_nonmanifold_edges": 0
+  },
+  "generated_stl_sha256": {
+    "left": "118e08615284c200508228e15eca0bb512a6380043df29942a59cec42008041b",
+    "right": "50e94b83514a5e9c9089e53584811363318e7ffb3a2f935d6507daa8f2ffbab6"
+  },
+  "source_bracket_sha256": "c912eb55577ce157fb8b2cc11cb7baf350383baba564007fec4ce0a7b8ac0de2"
+}

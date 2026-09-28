@@ -58,7 +58,7 @@ grounded subtask at a time while keeping MolmoAct2 as the motor policy.
 ```text
 cad/                             parametric D435i wrist adapter + STL/STEP
 configs/cameras/                 camera models and simulated mount poses
-configs/hardware/                physical D435i crop/mount settings
+configs/hardware/                physical D435i camera-server settings
 configs/benchmarks/              five AAG scene specifications
 docs/                            architecture, benchmark, calibration notes
 scripts/                         simulation and hardware launch helpers
@@ -154,13 +154,15 @@ aag-yam camera-profiles
 - `molmoact2-reference`: reproduces the camera matrices and mount poses in the
   pinned upstream simulator.
 - `d405-wrist-physical-nominal`: keeps the upstream wrist poses but projects
-  nominal physical D405 84° × 58° color intrinsics. This is the default
-  reference for D405/D435i mount comparison, not a measured calibration.
+  datasheet-derived D405 84° × 58° limits. It is a diagnostic approximation,
+  not a measured stream calibration and not the default comparison reference.
 - `d435i-all-nominal`: replaces both wrist camera intrinsics with a nominal
   D435i FOV while retaining the reference mounts. This is a domain-shift test,
   not a calibrated physical-rig profile.
-- `d435i-wrist-d405-match-nominal`: models the proposed 49.8 mm optical
-  setback and the effective intrinsics after the nominal 584 × 360 crop.
+- `d435i-wrist-raw-rigid-optimized`: uses raw nominal D435i intrinsics and the
+  current pose-only optimum, with no image transform.
+- `d435i-wrist-d405-match-nominal`: preserves the older single-plane
+  crop/resize experiment for comparison; it is not the recommended raw path.
 - `d435i-all-calibrated.example`: copy this file, insert measured intrinsics and
   hand–eye extrinsics, remove the `.example` suffix, and pass its path to
   `--camera-profile`.
@@ -176,10 +178,10 @@ bash scripts/run_sim.sh \
 
 ## D435i wrist-camera adapter
 
-The recommended D435i experiment does not simply resize the narrower D435i
-RGB view. It moves the RGB optical center about 49.8 mm farther from the nominal
-grasp plane, shifts the asymmetric body outboard, and applies a fixed crop that
-is calculated from each camera's factory intrinsics.
+The recommended D435i experiment feeds untouched 640 × 360 RGB to MolmoAct2
+and approximates the pinned D405 view using only physical camera translation
+and rotation. It performs no crop, resize, warp, reprojection, hole filling, or
+inpainting.
 
 The repository includes:
 
@@ -188,13 +190,12 @@ The repository includes:
   passages;
 - a parametric carrier generator, reproducible mesh-fusion/checking script,
   and separate interface gauges;
-- `aag-yam wrist-match-plan` for distance/crop calculation;
 - `scripts/query_realsense_intrinsics.py` for the two physical serial numbers;
 - `scripts/run_d435i_camera_server.py`, which preserves the existing YAM ZMQ
-  client/server protocol while transforming only the wrist RGB frames;
-- a nominal simulator profile named `d435i-wrist-d405-match-nominal`.
+  client/server protocol and defaults to raw RGB pass-through;
+- a raw, pose-only ManiSkill comparison and optimizer.
 
-You can compare the physical-D405-nominal reference and D435i candidate views
+You can compare the pinned MolmoAct2 reference and raw D435i candidate views
 headlessly, without loading the policy or starting its server:
 
 ```bash
@@ -205,18 +206,17 @@ For a multi-scene mount search:
 
 ```bash
 bash scripts/compare_wrist_cameras.sh \
-  --reference-profile d405-wrist-physical-nominal \
+  --comparison-mode raw \
   --seed 42 --seed 43 --seed 44 \
-  --optimize --optimization-passes 4
+  --optimize --optimization-passes 5
 ```
 
-The task-aware search measures gripper and task-actor segmentation rather than
-letting the table dominate a global RGB score. With the pinned scene it raised
-mean finger IoU from 25.5% to 94.2%. A separately labeled experimental mount
-pair for that pose is under
-[`cad/generated/official-bracket-derived/physical-d405-task-optimized`](cad/generated/official-bracket-derived/physical-d405-task-optimized/README.md).
-It remains a nominal/simulation-derived fit-check candidate; use measured
-intrinsics and stationary real-camera pairs before robot motion.
+Across both wrists and seeds 42–44, the pose-only search reached 87.4% mean
+finger IoU and 82.9% task-object IoU while reducing full-frame RGB MAE. The
+corresponding printable pair is under
+[`cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized`](cad/generated/official-bracket-derived/molmoact2-raw-rigid-optimized/README.md).
+It remains a simulation-derived fit-check candidate; use measured intrinsics
+and stationary real-camera pairs before robot motion.
 
 Read [Headless D405/D435i simulation comparison](docs/SIM_CAMERA_COMPARISON.md)
 for the saved RGB outputs, metrics, current sim-derived result, and its limits.

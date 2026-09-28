@@ -130,11 +130,6 @@ def setback_mount(
     angle = math.radians(view_down_angle_deg)
     optical_shift = extra_ray * math.cos(angle)
     ideal_image_up_shift = extra_ray * math.sin(angle)
-    if camera_mount_image_up_mm < ideal_image_up_shift:
-        raise ValueError(
-            "camera_mount_image_up_mm must not be below the pinhole-optimal "
-            f"{ideal_image_up_shift:.2f} mm"
-        )
     geometric_aim_correction_deg = math.degrees(
         math.atan2(camera_mount_image_up_mm - ideal_image_up_shift, match_distance_mm)
     )
@@ -217,9 +212,8 @@ def setback_mount(
     camera_clearance = cylinders(camera_holes, 3.4, carrier_back_z - 0.5, 7.0)
     carrier = carrier.cut(camera_clearance)
 
-    # The 6.73 mm extra rise required for housing clearance would move the
-    # pinch point down in the image.  Rotate the camera down around its screw
-    # row to retain the nominal bearing.
+    # Rotate about the screw row so translations above or below the nominal
+    # viewing ray can retain the desired optical-axis bearing.
     carrier = carrier.rotate(
         (0.0, camera_mount_image_up_mm, camera_rear_z),
         (1.0, camera_mount_image_up_mm, camera_rear_z),

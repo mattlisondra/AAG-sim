@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Run the existing YAM ZMQ camera server with D435i wrist-view matching.
+"""Run the existing YAM ZMQ camera server with selectable D435i RGB handling.
 
-This script imports the camera implementation and wire protocol from the pinned
-YAM checkout.  Only the configured wrist RGB arrays are crop/resized; camera
+Raw pass-through is the recommended mode for the rigid-pose-optimized mount.
+The older fixed crop/resize experiment remains available explicitly. Camera
 names, timestamps, and the REP/PUB protocol remain unchanged.
 """
 
@@ -97,6 +97,9 @@ def main() -> int:
         ) from exc
 
     match = json.loads(args.match_config.read_text(encoding="utf-8"))
+    image_transform = str(match.get("image_transform", "raw"))
+    if image_transform not in {"raw", "crop_resize"}:
+        raise SystemExit("image_transform must be 'raw' or 'crop_resize'")
     ref = match["reference"]
     reference = PinholeIntrinsics(
         int(ref["width"]),
@@ -117,7 +120,7 @@ def main() -> int:
         LOGGER.info("Opening %s (%s)", name, serial)
         raw = RealSenseCamera(serial)
         wrist_spec = match["wrist_cameras"].get(name, {})
-        if wrist_spec.get("enabled", False):
+        if wrist_spec.get("enabled", False) and image_transform == "crop_resize":
             source = _source_intrinsics(raw)
             rotate_180 = bool(wrist_spec.get("rotate_180", False))
             if rotate_180:
@@ -148,6 +151,8 @@ def main() -> int:
                 rotate_180=rotate_180,
             )
         else:
+            if wrist_spec.get("enabled", False):
+                LOGGER.info("%s raw RGB pass-through (no image transform)", name)
             cameras[name] = raw
 
     server = CameraServer(
