@@ -1,0 +1,30 @@
+{
+  "reference": {
+    "description": "Nominal D405 640x360 color stream. Replace with measured D405 intrinsics if available.",
+    "width": 640,
+    "height": 360,
+    "fx": 355.3960047453417,
+    "fy": 324.72859594885625,
+    "cx": 320.0,
+    "cy": 180.0,
+    "working_distance_mm": 116.9619168789568
+  },
+  "actual_working_distance_mm": 166.71790944273448,
+  "wrist_cameras": {
+    "left_camera": {
+      "enabled": true,
+      "rotate_180": false
+    },
+    "right_camera": {
+      "enabled": true,
+      "rotate_180": false
+    }
+  },
+  "notes": [
+    "The server queries each D435i factory color intrinsic at 640x360 and computes its own crop.",
+    "A per-wrist actual_working_distance_mm overrides the global value when separate mount lengths are used.",
+    "Set rotate_180 independently after checking a saved frame from each wrist.",
+    "Measure lens-to-pinch distance along the camera-to-pinch ray; do not infer it from adapter thickness.",
+    "Do not enable robot motion until the transformed jaw-tip framing has been compared with the released D405 examples."
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "d435i-wrist-d405-match-nominal",
+  "calibration": "nominal-fov-and-upstream-grasp-plane-experiment",
+  "description": "Experimental D435i wrist pose plus effective post-crop intrinsics. It moves each wrist optical center along the reference camera-to-grasp ray from 116.96 mm to 166.72 mm, then models a centered 584x360 crop resized to 640x360. Replace nominal intrinsics and hand-eye poses with measurements before hardware use.",
+  "cameras": {
+    "top_cam": {
+      "model": "Intel RealSense D435i role (upstream nominal)",
+      "width": 640,
+      "height": 360,
+      "nominal_hfov_deg": 69.4,
+      "mount": "bimanual_base",
+      "position_m": [0.15, 0.0, 0.8],
+      "quaternion_wxyz": [0.7660444431189782, 0.0, 0.6427876096865391, 0.0]
+    },
+    "left_cam": {
+      "model": "Intel RealSense D435i RGB after nominal D405-match crop",
+      "width": 640,
+      "height": 360,
+      "intrinsic": [[506.4533587648926, 0.0, 320.0], [0.0, 462.86923211847585, 180.0], [0.0, 0.0, 1.0]],
+      "mount": "left_link_6",
+      "position_m": [0.0, 0.1282863, 0.02822237],
+      "quaternion_wxyz": [0.612372429196013, -0.35355339154618404, -0.3535533966987049, -0.612372438120441]
+    },
+    "right_cam": {
+      "model": "Intel RealSense D435i RGB after nominal D405-match crop",
+      "width": 640,
+      "height": 360,
+      "intrinsic": [[506.4533587648926, 0.0, 320.0], [0.0, 462.86923211847585, 180.0], [0.0, 0.0, 1.0]],
+      "mount": "right_link_6",
+      "position_m": [0.0, 0.1282863, 0.02822237],
+      "quaternion_wxyz": [0.612372429196013, -0.35355339154618404, -0.3535533966987049, -0.612372438120441]
+    }
+  }
+}

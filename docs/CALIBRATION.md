@@ -38,6 +38,12 @@ Keep seeds, object layouts, instructions, action-chunk length, and policy
 checkpoint identical. Compare success, per-subtask completion, collisions,
 interventions, and episode length.
 
+For the physical crop-and-setback mount, use the separate
+[D435i wrist adapter guide](D435I_WRIST_ADAPTER.md). The `d435i-all-nominal`
+profile intentionally keeps the old mount and is only a domain-shift baseline;
+`d435i-wrist-d405-match-nominal` models the proposed farther-back optical pose
+and post-crop intrinsics.
+
 ## Building a calibrated profile
 
 1. Select the exact RealSense color stream used by the policy (initially

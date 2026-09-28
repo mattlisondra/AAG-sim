@@ -56,9 +56,12 @@ grounded subtask at a time while keeping MolmoAct2 as the motor policy.
 ## Repository layout
 
 ```text
-configs/cameras/                 camera models and mount poses
+cad/                             parametric D435i wrist adapter + STL/STEP
+configs/cameras/                 camera models and simulated mount poses
+configs/hardware/                physical D435i crop/mount settings
 configs/benchmarks/              five AAG scene specifications
 docs/                            architecture, benchmark, calibration notes
+scripts/                         simulation and hardware launch helpers
 src/aag_yam_sim/                 validation and evaluation CLI
 tests/                           dependency-light contract tests
 third_party/molmoact2/           pinned official repository (git submodule)
@@ -153,6 +156,8 @@ aag-yam camera-profiles
 - `d435i-all-nominal`: replaces both wrist camera intrinsics with a nominal
   D435i FOV while retaining the reference mounts. This is a domain-shift test,
   not a calibrated physical-rig profile.
+- `d435i-wrist-d405-match-nominal`: models the proposed 49.8 mm optical
+  setback and the effective intrinsics after the nominal 584 × 360 crop.
 - `d435i-all-calibrated.example`: copy this file, insert measured intrinsics and
   hand–eye extrinsics, remove the `.example` suffix, and pass its path to
   `--camera-profile`.
@@ -165,6 +170,28 @@ bash scripts/run_sim.sh \
   --camera-profile d435i-all-nominal \
   --episodes 3
 ```
+
+## D435i wrist-camera adapter
+
+The recommended D435i experiment does not simply resize the narrower D435i
+RGB view. It moves the RGB optical center about 49.8 mm farther from the nominal
+grasp plane, shifts the asymmetric body outboard, and applies a fixed crop that
+is calculated from each camera's factory intrinsics.
+
+The repository includes:
+
+- mirrored, parametric STEP/STL adapter candidates and a 20/45 mm hole-pitch
+  fit coupon;
+- `aag-yam wrist-match-plan` for distance/crop calculation;
+- `scripts/query_realsense_intrinsics.py` for the two physical serial numbers;
+- `scripts/run_d435i_camera_server.py`, which preserves the existing YAM ZMQ
+  client/server protocol while transforming only the wrist RGB frames;
+- a nominal simulator profile named `d435i-wrist-d405-match-nominal`.
+
+Read [D435i wrist adapter and view matching](docs/D435I_WRIST_ADAPTER.md) before
+printing. The camera dimensions are authoritative, but the surrounding I2RT
+bracket clearance is not public; print the coupon and perform a stationary
+fit/collision check first.
 
 ## Five-scene AAG benchmark
 

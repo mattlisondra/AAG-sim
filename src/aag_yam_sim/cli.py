@@ -12,6 +12,12 @@ from .contracts import normalize_server_url
 from .paths import DEFAULT_UPSTREAM_DIR, REPO_ROOT
 from .server import check_server
 from .upstream import run_official_eval, validate_upstream
+from .wrist_match import (
+    D405_COLOR_NOMINAL,
+    D435I_COLOR_NOMINAL,
+    PinholeIntrinsics,
+    compute_match_plan,
+)
 
 
 def _profile_summary(name: str) -> dict:
@@ -50,6 +56,21 @@ def _parser() -> argparse.ArgumentParser:
     show_profile = commands.add_parser("camera-profile", help="show a resolved camera profile")
     show_profile.add_argument("name")
 
+    wrist_plan = commands.add_parser(
+        "wrist-match-plan",
+        help="compute a D435i-to-D405 wrist-view distance and crop plan",
+    )
+    wrist_plan.add_argument("--reference-distance-mm", type=float, default=116.9619168789568)
+    wrist_plan.add_argument("--actual-distance-mm", type=float)
+    wrist_plan.add_argument("--reference-fx", type=float)
+    wrist_plan.add_argument("--reference-fy", type=float)
+    wrist_plan.add_argument("--reference-cx", type=float, default=320.0)
+    wrist_plan.add_argument("--reference-cy", type=float, default=180.0)
+    wrist_plan.add_argument("--source-fx", type=float)
+    wrist_plan.add_argument("--source-fy", type=float)
+    wrist_plan.add_argument("--source-cx", type=float, default=320.0)
+    wrist_plan.add_argument("--source-cy", type=float, default=180.0)
+
     commands.add_parser("scenarios", help="list AAG benchmark scenarios")
 
     show_scenario = commands.add_parser("scenario", help="show one benchmark scenario")
@@ -84,6 +105,50 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "camera-profile":
         _print_json(_profile_summary(args.name))
+        return 0
+    if args.command == "wrist-match-plan":
+        if (args.source_fx is None) != (args.source_fy is None):
+            raise SystemExit("--source-fx and --source-fy must be supplied together")
+        if (args.reference_fx is None) != (args.reference_fy is None):
+            raise SystemExit("--reference-fx and --reference-fy must be supplied together")
+        reference = D405_COLOR_NOMINAL
+        reference_kind = "D405 datasheet nominal color FOV"
+        if args.reference_fx is not None:
+            reference = PinholeIntrinsics(
+                640,
+                360,
+                args.reference_fx,
+                args.reference_fy,
+                args.reference_cx,
+                args.reference_cy,
+            )
+            reference_kind = "measured 640x360 D405 color stream"
+        source = D435I_COLOR_NOMINAL
+        source_kind = "D435i datasheet nominal"
+        if args.source_fx is not None:
+            source = PinholeIntrinsics(
+                640,
+                360,
+                args.source_fx,
+                args.source_fy,
+                args.source_cx,
+                args.source_cy,
+            )
+            source_kind = "measured 640x360 color stream"
+        plan = compute_match_plan(
+            reference,
+            source,
+            reference_distance_mm=args.reference_distance_mm,
+            actual_distance_mm=args.actual_distance_mm,
+        )
+        report = plan.to_dict()
+        report["source_kind"] = source_kind
+        report["reference_kind"] = reference_kind
+        report["warning"] = (
+            "First-order match at one working plane only; verify gripper framing and "
+            "hand-eye pose before enabling robot motion."
+        )
+        _print_json(report)
         return 0
     if args.command == "scenarios":
         _print_json(
