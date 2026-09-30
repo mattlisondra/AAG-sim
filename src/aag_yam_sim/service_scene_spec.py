@@ -26,7 +26,11 @@ def service_scene_layout(scene_id: str) -> dict[str, Any]:
 
 def service_scene_by_env_id(env_id: str) -> dict[str, Any]:
     for scene in service_scene_layouts():
-        if scene["env_id"] == env_id:
+        if env_id in {scene["env_id"], scene["preview_env_id"]}:
             return scene
-    known = ", ".join(scene["env_id"] for scene in service_scene_layouts())
+    known = ", ".join(
+        env_id
+        for scene in service_scene_layouts()
+        for env_id in (scene["env_id"], scene["preview_env_id"])
+    )
     raise KeyError(f"unknown service-scene environment {env_id!r}; known: {known}")

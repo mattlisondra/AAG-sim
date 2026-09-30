@@ -22,3 +22,13 @@ def scenario_by_id(scenario_id: str) -> dict[str, Any]:
             return item
     known = ", ".join(item["id"] for item in scenarios())
     raise KeyError(f"unknown scenario {scenario_id!r}; known: {known}")
+
+
+def scenario_by_env_id(env_id: str) -> dict[str, Any]:
+    for item in scenarios():
+        if env_id in {item["env_id"], item["preview_env_id"]}:
+            return item
+    known = ", ".join(
+        env_id for item in scenarios() for env_id in (item["env_id"], item["preview_env_id"])
+    )
+    raise KeyError(f"unknown scenario environment {env_id!r}; known: {known}")

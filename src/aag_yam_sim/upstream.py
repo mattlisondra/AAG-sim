@@ -48,7 +48,10 @@ def run_official_eval(
     install_upstream_camera_profile(profile)
 
     from sim_eval.inference.client import YAMClient
-    from sim_eval.run_eval import EvalConfig, _evaluate_task
+    from sim_eval.run_eval import EvalConfig
+
+    from . import service_scenes  # noqa: F401  # register AAG environments
+    from .evaluation import evaluate_task
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     run_dir = output_dir / timestamp
@@ -68,11 +71,13 @@ def run_official_eval(
     task_results: dict[str, Any] = {}
     success_rates: list[float] = []
     rewards: list[float] = []
+    partial_scores: list[float] = []
     for env_id in env_ids:
-        result = _evaluate_task(env_id, client, config)
+        result = evaluate_task(env_id, client, config)
         task_results[env_id] = result
         success_rates.append(float(result["success_rate"]))
         rewards.append(float(result["avg_reward"]))
+        partial_scores.append(float(result["partial_task_score"]))
 
     report = {
         "integration": {
@@ -85,6 +90,7 @@ def run_official_eval(
         "tasks": task_results,
         "overall": {
             "mean_success_rate": float(np.mean(success_rates)),
+            "mean_partial_task_score": float(np.mean(partial_scores)),
             "mean_reward": float(np.mean(rewards)),
             "num_tasks": len(task_results),
         },

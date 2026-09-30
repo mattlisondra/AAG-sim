@@ -45,20 +45,35 @@ For each scene, camera profile, and instruction condition:
 - collision/intervention/limit-clamp rate;
 - performance versus clutter level and camera profile.
 
-Do not infer partial credit from reward alone. The evaluator should expose one
-named boolean per atomic placement, plus the first step at which it became true.
-For a compound command, report both final-state completion and a latched
-ever-completed diagnostic; the end-to-end result must still fail if a later
-action undoes a required final arrangement.
+Do not infer partial credit from reward alone. The evaluator exposes one named
+boolean per atomic placement, plus the first step at which it became true. For
+a compound command, it reports both current final-state completion and latched
+ordered progress; end-to-end success still requires all final predicates to be
+true simultaneously.
+
+This follows RoboLab's separation between final-state termination and subtask
+progress: successful episodes score 1.0, while failed episodes retain their
+fractional progress. See [RoboLab subtask scoring](https://github.com/NVlabs/RoboLab/blob/main/docs/subtask.md)
+and [RoboLab result analysis](https://github.com/NVlabs/RoboLab/blob/main/docs/analysis.md).
 
 ## Simulator implementation status
 
 The official upstream `BimanualYAMPutEverythingInBox-v1` environment remains
-the Stage 0 closed-loop smoke test. The five service scenes now have declarative
+the Stage 0 closed-loop smoke test. The five service scenes have declarative
 layouts, ManiSkill-native YCB objects where suitable, procedural collision
-geometry for task-specific props, registered `Preview-v0` environments, and a
-headless three-camera renderer. They do not yet have task predicates, rollout
-termination, randomized spawn distributions, or meaningful rewards.
+geometry for task-specific props, one-step `Preview-v0` environments, and
+closed-loop `-v1` environments. Dynamic objects receive deterministic
+seed-dependent XY/yaw jitter and explicit friction.
+
+The `-v1` tasks implement:
+
+- ordered stages with atomic object predicates;
+- `in`, `on`, and distance-bounded `beside` relations, including optional
+  common-support containment;
+- latched ordered partial progress plus current final-state checks;
+- automatic ManiSkill success termination;
+- per-episode and aggregate SR/partial-score reporting;
+- named completion flags and first-completion steps in `results.json`.
 
 Render all current layouts without loading the policy:
 
@@ -66,6 +81,19 @@ Render all current layouts without loading the policy:
 bash scripts/render_service_scenes.sh \
   --camera-profile d435i-wrist-raw-rigid-optimized \
   --seed 42
+```
+
+Run the complete five-task D435i evaluation with the policy server already
+listening on port 8202:
+
+```bash
+bash scripts/run_service_eval.sh \
+  --server-url http://127.0.0.1:8202/act \
+  --camera-profile d435i-wrist-raw-rigid-optimized \
+  --episodes 10 \
+  --max-episode-steps 4500 \
+  --seed 42 \
+  --output-dir outputs/d435i-service-10episodes
 ```
 
 The layout source of truth is
@@ -76,28 +104,20 @@ the IDs and registered preview environments stay aligned.
 
 ## Evaluation implementation TODO
 
-1. Add deterministic reset distributions with collision-free rejection and log
-   every sampled object pose.
-2. Stabilize physical properties for all movable props: scale, mass, center of
-   mass, friction, restitution, and grasp-clearance envelopes.
-3. Implement object-level relations:
-   - `in`: the object support proxy lies inside the target's interior XY bounds
-     and below its rim, with low terminal velocity;
-   - `on`: the object footprint overlaps the target support region, its bottom
-     is near the support height, and it is settled;
-   - `beside`: both objects share a support surface, are outside one another,
-     and their XY separation lies in a declared interval.
-4. Expand group phrases such as “both bottles” and “the cups” into atomic
-   object predicates before scoring.
-5. Return named `subtask_complete`, `subtask_first_step`, ordered-prefix, and
-   final all-complete values in `info`; terminate successfully only when all
-   final predicates hold for a short stability window.
-6. Extend the current evaluator to save complete policy-view videos, state and
-   action traces, inference latency, safety events, and the predicate timeline.
-7. Validate one resolved atomic instruction at a time, then a resolved compound
-   instruction, then connect the broad AAG instruction resolver.
-8. Run matched-seed D405-reference versus D435i-candidate A/B trials and report
+1. Add collision-rejection sampling for wider spawn distributions; the current
+   bounded jitter is deliberately conservative.
+2. Record full policy-view videos, state/action traces, inference latency,
+   safety events, and per-step predicate timelines. Current MP4s use the human
+   observer view and save the initial policy frames separately.
+3. Validate one resolved atomic instruction at a time, then the resolved
+   compound instructions, then connect the broad AAG instruction resolver.
+4. Run matched-seed D405-reference versus D435i-candidate A/B trials and report
    confidence intervals rather than a single success percentage.
+5. Tune object mass, friction, grasp clearance, and relation thresholds from
+   rollout failures without changing the benchmark after looking at final-test
+   outcomes.
 
-Until those items are complete, an image that looks plausible is a layout
-approval artifact—not evidence that MolmoAct2 can complete the task.
+The environment/scoring machinery is validated by forcing each declared stage
+into its goal pose and passing it through the real episode loop. This verifies
+partial-score progression, full score, and success termination; it is not a
+claim that the learned policy achieves those states.

@@ -76,12 +76,14 @@ def _parser() -> argparse.ArgumentParser:
     show_scenario = commands.add_parser("scenario", help="show one benchmark scenario")
     show_scenario.add_argument("scenario_id")
 
-    evaluate = commands.add_parser("eval-official", help="run upstream ManiSkill YAM evaluation")
+    evaluate = commands.add_parser(
+        "eval-official", help="run official or AAG ManiSkill YAM evaluation"
+    )
     evaluate.add_argument("--server-url", required=True)
     evaluate.add_argument("--camera-profile", default="molmoact2-reference")
     evaluate.add_argument("--upstream-dir", type=Path, default=DEFAULT_UPSTREAM_DIR)
     evaluate.add_argument(
-        "--env-id", action="append", default=[], help="repeat for multiple upstream env IDs"
+        "--env-id", action="append", default=[], help="repeat for multiple ManiSkill env IDs"
     )
     evaluate.add_argument("--instruction")
     evaluate.add_argument("--episodes", type=int, default=10)
@@ -158,6 +160,8 @@ def main(argv: list[str] | None = None) -> int:
                     "difficulty": item["difficulty"],
                     "scene": item["scene"],
                     "broad_instruction": item["broad_instruction"],
+                    "env_id": item["env_id"],
+                    "atomic_subtask_count": item["atomic_subtask_count"],
                     "status": item["status"],
                 }
                 for item in scenarios()

@@ -7,12 +7,13 @@ inference server and the official
 
 This repository is deliberately an integration layer, not a fork of the model.
 It pins the official source, validates the server/camera/action contract, adds a
-camera-profile flag, and provides five reproducible AAG service-scene previews.
+camera-profile flag, and provides five reproducible, evaluable AAG service scenes.
 
 > Status: the official `BimanualYAMPutEverythingInBox-v1` task is runnable now.
-> The five AAG layouts can also be rendered from all three policy cameras, but
-> they are **preview environments**, not policy-evaluation environments yet.
-> Their geometric success predicates and partial-credit evaluator remain TODO.
+> The five AAG tasks now have closed-loop rollout environments, geometric
+> success predicates, ordered atomic-subtask scoring, success termination, and
+> MP4/result recording. This validates the benchmark machinery—not MolmoAct2's
+> empirical success on the new scenes, which must be measured by running it.
 
 ## What is known (and what is not)
 
@@ -263,10 +264,60 @@ Current seed-42 preview sheets:
 | Living-room tidying | ![Living-room tidying preview](docs/assets/service-scene-previews/living-room-tidying.png) |
 | Cafeteria/service station | ![Cafeteria/service-station preview](docs/assets/service-scene-previews/cafeteria-service-station.png) |
 
-These preview IDs end in `Preview-v0` on purpose. Do not pass them to
-`scripts/run_sim.sh` yet: they currently prove asset loading, layout, and
-policy-camera visibility only. See [Benchmark design](docs/BENCHMARK.md) for
-the concrete path from these previews to closed-loop MolmoAct2 evaluation.
+The one-step visual IDs end in `Preview-v0`; closed-loop evaluation uses the
+corresponding `-v1` task IDs. Keeping both prevents an accidental long rollout
+when the intent was only to inspect a scene.
+
+### 6. Run 10 D435i episodes on all five service tasks
+
+Keep the MolmoAct2 server from step 3 running. Do not pass `--instruction` here:
+the evaluator automatically selects the resolved compound instruction for each
+environment.
+
+```bash
+cd /home/asblab8/Documents/ChatGPT/AAG-sim
+
+bash scripts/run_service_eval.sh \
+  --server-url http://127.0.0.1:8202/act \
+  --camera-profile d435i-wrist-raw-rigid-optimized \
+  --episodes 10 \
+  --max-episode-steps 4500 \
+  --seed 42 \
+  --output-dir outputs/d435i-service-10episodes
+```
+
+This runs 50 episodes total—10 seeds for each scene—and can take a long time.
+The evaluator stops an episode as soon as all ordered subtasks have been
+reached and all final geometric predicates are simultaneously true. It writes:
+
+```text
+outputs/d435i-service-10episodes/<timestamp>/results.json
+outputs/d435i-service-10episodes/<timestamp>/videos/<env-id>/ep000.mp4
+outputs/d435i-service-10episodes/<timestamp>/frames/<env-id>/ep000_top_cam.png
+outputs/d435i-service-10episodes/<timestamp>/frames/<env-id>/ep000_left_cam.png
+outputs/d435i-service-10episodes/<timestamp>/frames/<env-id>/ep000_right_cam.png
+```
+
+The two primary reported metrics are:
+
+- `success_rate`: fraction of episodes that reach the complete final state;
+- `partial_task_score`: mean ordered atomic-subtask completion in `[0, 1]`.
+
+Each episode also records the score, completed/total subtask counts, named
+subtask flags, first-completion steps, step count, and termination reason.
+Following [RoboLab's score convention](https://github.com/NVlabs/RoboLab/blob/main/docs/analysis.md),
+successful episodes score `1.0`, while failures retain fractional progress.
+For example, dining cleanup has three atomic placements and cafeteria has six.
+
+Validate all predicates and success termination without starting MolmoAct2:
+
+```bash
+PYTHONPATH=src:third_party/molmoact2 \
+uv run --project third_party/molmoact2 \
+  python -m aag_yam_sim.validate_service_tasks \
+  --camera-profile d435i-wrist-raw-rigid-optimized \
+  --seed 42
+```
 
 ### RTX 5090 setup after pulling this repository
 

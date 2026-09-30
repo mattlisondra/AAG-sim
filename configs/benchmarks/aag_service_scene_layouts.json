@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-preview",
+  "version": "0.2.0",
   "coordinate_frame": "YAM table frame: x points away from the robot bases, y spans the two arms, table top is z=0",
   "asset_policy": {
     "manipulable_objects": "ManiSkill-native YCB assets where a semantic match exists",
@@ -9,7 +9,8 @@
   "scenes": [
     {
       "id": "dining-table-cleanup",
-      "env_id": "AAGDiningTableCleanupPreview-v0",
+      "env_id": "AAGDiningTableCleanup-v1",
+      "preview_env_id": "AAGDiningTableCleanupPreview-v0",
       "objects": [
         {"name": "red_cup", "label": "red cup", "kind": "ycb", "asset_id": "065-e_cups", "position_xy": [-0.38, 0.27], "yaw_deg": 15},
         {"name": "blue_cup", "label": "blue cup", "kind": "ycb", "asset_id": "065-b_cups", "position_xy": [-0.31, 0.13], "yaw_deg": -20},
@@ -21,26 +22,58 @@
         {"name": "napkin_box", "label": "napkin box", "kind": "box", "position_xy": [-0.20, 0.10], "half_size": [0.055, 0.035, 0.025], "color": [0.82, 0.78, 0.66, 1.0], "static": true},
         {"name": "bus_bin", "label": "bus bin", "kind": "open_container", "position_xy": [-0.09, 0.27], "inner_half": [0.085, 0.095], "height": 0.075, "wall": 0.008, "color": [0.22, 0.24, 0.27, 1.0], "static": true},
         {"name": "dish_tray", "label": "dish tray", "kind": "open_container", "position_xy": [-0.08, -0.23], "inner_half": [0.095, 0.09], "height": 0.025, "wall": 0.006, "color": [0.72, 0.74, 0.76, 1.0], "static": true}
+      ],
+      "stages": [
+        {
+          "name": "cups_in_bus_bin",
+          "predicates": [
+            {"id": "red_cup_in_bus_bin", "relation": "in", "object": "red_cup", "target": "bus_bin", "goal_offset_xy": [0.0, 0.042]},
+            {"id": "blue_cup_in_bus_bin", "relation": "in", "object": "blue_cup", "target": "bus_bin", "goal_offset_xy": [0.0, -0.042]}
+          ]
+        },
+        {
+          "name": "plate_in_dish_tray",
+          "predicates": [
+            {"id": "white_plate_in_dish_tray", "relation": "in", "object": "white_plate", "target": "dish_tray", "goal_offset_xy": [0.0, 0.0]}
+          ]
+        }
       ]
     },
     {
       "id": "kitchen-dish-sorting",
-      "env_id": "AAGKitchenDishSortingPreview-v0",
+      "env_id": "AAGKitchenDishSorting-v1",
+      "preview_env_id": "AAGKitchenDishSortingPreview-v0",
       "objects": [
         {"name": "blue_bowl", "label": "blue bowl", "kind": "open_container", "position_xy": [-0.39, 0.26], "inner_half": [0.055, 0.055], "height": 0.04, "wall": 0.006, "color": [0.12, 0.32, 0.82, 1.0], "static": false},
         {"name": "white_bowl", "label": "white bowl", "kind": "open_container", "position_xy": [-0.32, 0.10], "inner_half": [0.055, 0.055], "height": 0.04, "wall": 0.006, "color": [0.92, 0.92, 0.88, 1.0], "static": false},
         {"name": "red_cup", "label": "red cup beside plate", "kind": "ycb", "asset_id": "065-e_cups", "position_xy": [-0.31, -0.13], "yaw_deg": 20},
         {"name": "green_cup", "label": "green cup (distractor)", "kind": "ycb", "asset_id": "065-c_cups", "position_xy": [-0.43, -0.26], "yaw_deg": -20},
-        {"name": "plate", "label": "plate", "kind": "disc", "position_xy": [-0.22, -0.15], "radius": 0.065, "half_thickness": 0.007, "color": [0.92, 0.92, 0.88, 1.0]},
+        {"name": "plate", "label": "plate in tray", "kind": "disc", "position_xy": [-0.01, -0.24], "initial_z": 0.013, "radius": 0.052, "half_thickness": 0.007, "color": [0.92, 0.92, 0.88, 1.0], "static": true},
         {"name": "bottle", "label": "bottle", "kind": "ycb", "asset_id": "006_mustard_bottle", "position_xy": [-0.25, -0.32], "yaw_deg": 0},
         {"name": "food_container", "label": "food container", "kind": "box", "position_xy": [-0.18, 0.02], "half_size": [0.06, 0.045, 0.035], "color": [0.86, 0.52, 0.16, 1.0], "static": false},
-        {"name": "dish_rack", "label": "dish rack", "kind": "rack", "position_xy": [-0.08, 0.25], "inner_half": [0.10, 0.09], "height": 0.055, "wall": 0.006, "color": [0.72, 0.74, 0.76, 1.0], "static": true},
-        {"name": "tray", "label": "tray", "kind": "open_container", "position_xy": [-0.07, -0.24], "inner_half": [0.10, 0.095], "height": 0.025, "wall": 0.006, "color": [0.28, 0.30, 0.34, 1.0], "static": true}
+        {"name": "dish_rack", "label": "dish rack", "kind": "rack", "position_xy": [-0.08, 0.25], "inner_half": [0.14, 0.12], "height": 0.055, "wall": 0.006, "color": [0.72, 0.74, 0.76, 1.0], "static": true},
+        {"name": "tray", "label": "tray", "kind": "open_container", "position_xy": [-0.07, -0.24], "inner_half": [0.13, 0.095], "height": 0.025, "wall": 0.006, "color": [0.28, 0.30, 0.34, 1.0], "static": true}
+      ],
+      "stages": [
+        {
+          "name": "bowls_in_dish_rack",
+          "predicates": [
+            {"id": "blue_bowl_in_dish_rack", "relation": "in", "object": "blue_bowl", "target": "dish_rack", "goal_offset_xy": [0.0, 0.058]},
+            {"id": "white_bowl_in_dish_rack", "relation": "in", "object": "white_bowl", "target": "dish_rack", "goal_offset_xy": [0.0, -0.058]}
+          ]
+        },
+        {
+          "name": "cup_beside_plate_in_tray",
+          "predicates": [
+            {"id": "red_cup_beside_plate_in_tray", "relation": "beside", "object": "red_cup", "target": "plate", "support": "tray", "min_distance": 0.065, "max_distance": 0.13, "goal_offset_xy": [-0.09, 0.0]}
+          ]
+        }
       ]
     },
     {
       "id": "bedside-assistance",
-      "env_id": "AAGBedsideAssistancePreview-v0",
+      "env_id": "AAGBedsideAssistance-v1",
+      "preview_env_id": "AAGBedsideAssistancePreview-v0",
       "objects": [
         {"name": "water_bottle", "label": "water bottle", "kind": "bottle", "position_xy": [-0.34, -0.23], "body_radius": 0.032, "body_height": 0.13, "color": [0.30, 0.66, 0.90, 0.82], "cap_color": [0.12, 0.28, 0.72, 1.0]},
         {"name": "mug", "label": "mug", "kind": "ycb", "asset_id": "025_mug", "position_xy": [-0.38, 0.20], "yaw_deg": 20},
@@ -48,11 +81,27 @@
         {"name": "snack_container", "label": "snack container", "kind": "ycb", "asset_id": "008_pudding_box", "position_xy": [-0.29, 0.05], "yaw_deg": -15},
         {"name": "medicine_bottle", "label": "mock medicine bottle", "kind": "bottle", "position_xy": [-0.43, -0.05], "body_radius": 0.027, "body_height": 0.075, "color": [0.90, 0.90, 0.84, 1.0], "cap_color": [0.92, 0.46, 0.12, 1.0]},
         {"name": "basket", "label": "small basket", "kind": "open_container", "position_xy": [-0.09, 0.22], "inner_half": [0.105, 0.09], "height": 0.07, "wall": 0.008, "color": [0.64, 0.40, 0.20, 1.0], "static": true}
+      ],
+      "stages": [
+        {
+          "name": "items_in_basket",
+          "predicates": [
+            {"id": "mug_in_basket", "relation": "in", "object": "mug", "target": "basket", "goal_offset_xy": [0.0, 0.04]},
+            {"id": "snack_container_in_basket", "relation": "in", "object": "snack_container", "target": "basket", "goal_offset_xy": [0.0, -0.04]}
+          ]
+        },
+        {
+          "name": "water_bottle_beside_tissues",
+          "predicates": [
+            {"id": "water_bottle_beside_tissue_box", "relation": "beside", "object": "water_bottle", "target": "tissue_box", "min_distance": 0.09, "max_distance": 0.18, "goal_offset_xy": [-0.12, 0.0]}
+          ]
+        }
       ]
     },
     {
       "id": "living-room-tidying",
-      "env_id": "AAGLivingRoomTidyingPreview-v0",
+      "env_id": "AAGLivingRoomTidying-v1",
+      "preview_env_id": "AAGLivingRoomTidyingPreview-v0",
       "objects": [
         {"name": "toy", "label": "toy airplane", "kind": "ycb", "asset_id": "072-a_toy_airplane", "scale": 0.55, "position_xy": [-0.37, 0.24], "yaw_deg": 35},
         {"name": "tissue_box", "label": "tissue box", "kind": "box", "position_xy": [-0.17, -0.20], "half_size": [0.07, 0.04, 0.03], "color": [0.72, 0.86, 0.90, 1.0], "static": true},
@@ -61,11 +110,32 @@
         {"name": "remote", "label": "remote-sized object", "kind": "box", "position_xy": [-0.43, -0.26], "half_size": [0.055, 0.018, 0.009], "color": [0.08, 0.08, 0.09, 1.0], "static": false},
         {"name": "storage_bin", "label": "storage bin", "kind": "open_container", "position_xy": [-0.08, 0.24], "inner_half": [0.11, 0.10], "height": 0.08, "wall": 0.008, "color": [0.30, 0.50, 0.36, 1.0], "static": true},
         {"name": "tray", "label": "tray", "kind": "open_container", "position_xy": [-0.07, -0.25], "inner_half": [0.095, 0.085], "height": 0.025, "wall": 0.006, "color": [0.72, 0.55, 0.24, 1.0], "static": true}
+      ],
+      "stages": [
+        {
+          "name": "toy_in_storage_bin",
+          "predicates": [
+            {"id": "toy_in_storage_bin", "relation": "in", "object": "toy", "target": "storage_bin", "goal_offset_xy": [0.0, 0.0]}
+          ]
+        },
+        {
+          "name": "cup_in_tray",
+          "predicates": [
+            {"id": "cup_in_tray", "relation": "in", "object": "cup", "target": "tray", "goal_offset_xy": [0.0, 0.0]}
+          ]
+        },
+        {
+          "name": "book_beside_tissues",
+          "predicates": [
+            {"id": "book_beside_tissue_box", "relation": "beside", "object": "book", "target": "tissue_box", "min_distance": 0.10, "max_distance": 0.20, "goal_offset_xy": [-0.14, 0.0]}
+          ]
+        }
       ]
     },
     {
       "id": "cafeteria-service-station",
-      "env_id": "AAGCafeteriaServiceStationPreview-v0",
+      "env_id": "AAGCafeteriaServiceStation-v1",
+      "preview_env_id": "AAGCafeteriaServiceStationPreview-v0",
       "objects": [
         {"name": "bottle_1", "label": "bottle 1", "kind": "ycb", "asset_id": "006_mustard_bottle", "position_xy": [-0.40, 0.29], "yaw_deg": 10},
         {"name": "bottle_2", "label": "bottle 2", "kind": "ycb", "asset_id": "021_bleach_cleanser", "position_xy": [-0.30, 0.22], "yaw_deg": -15},
@@ -75,7 +145,30 @@
         {"name": "bowl", "label": "bowl", "kind": "ycb", "asset_id": "024_bowl", "position_xy": [-0.26, -0.20], "yaw_deg": 0},
         {"name": "food_container", "label": "rigid food container", "kind": "box", "position_xy": [-0.21, 0.04], "half_size": [0.065, 0.05, 0.035], "color": [0.86, 0.52, 0.16, 1.0], "static": true},
         {"name": "recycling_bin", "label": "recycling bin", "kind": "open_container", "position_xy": [-0.08, 0.27], "inner_half": [0.105, 0.10], "height": 0.09, "wall": 0.008, "color": [0.12, 0.38, 0.70, 1.0], "static": true},
-        {"name": "serving_tray", "label": "serving tray", "kind": "open_container", "position_xy": [-0.07, -0.25], "inner_half": [0.11, 0.10], "height": 0.025, "wall": 0.006, "color": [0.28, 0.30, 0.34, 1.0], "static": true}
+        {"name": "serving_tray", "label": "serving tray", "kind": "open_container", "position_xy": [-0.07, -0.25], "inner_half": [0.13, 0.11], "height": 0.025, "wall": 0.006, "color": [0.28, 0.30, 0.34, 1.0], "static": true}
+      ],
+      "stages": [
+        {
+          "name": "bottles_in_recycling_bin",
+          "predicates": [
+            {"id": "bottle_1_in_recycling_bin", "relation": "in", "object": "bottle_1", "target": "recycling_bin", "goal_offset_xy": [0.0, 0.042]},
+            {"id": "bottle_2_in_recycling_bin", "relation": "in", "object": "bottle_2", "target": "recycling_bin", "goal_offset_xy": [0.0, -0.042]}
+          ]
+        },
+        {
+          "name": "cups_on_serving_tray",
+          "predicates": [
+            {"id": "cup_1_on_serving_tray", "relation": "on", "object": "cup_1", "target": "serving_tray", "goal_offset_xy": [-0.045, 0.04]},
+            {"id": "cup_2_on_serving_tray", "relation": "on", "object": "cup_2", "target": "serving_tray", "goal_offset_xy": [0.045, 0.04]},
+            {"id": "cup_3_on_serving_tray", "relation": "on", "object": "cup_3", "target": "serving_tray", "goal_offset_xy": [0.0, -0.045]}
+          ]
+        },
+        {
+          "name": "bowl_beside_food_container",
+          "predicates": [
+            {"id": "bowl_beside_food_container", "relation": "beside", "object": "bowl", "target": "food_container", "min_distance": 0.10, "max_distance": 0.20, "goal_offset_xy": [-0.14, 0.0]}
+          ]
+        }
       ]
     }
   ]

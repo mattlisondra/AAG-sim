@@ -84,7 +84,7 @@ def render_scene(
     scene_dir.mkdir(parents=True, exist_ok=True)
 
     env = gym.make(
-        layout["env_id"],
+        layout["preview_env_id"],
         obs_mode="rgb",
         control_mode="pd_joint_pos",
         render_mode="rgb_array",
@@ -118,9 +118,10 @@ def render_scene(
     manifest = {
         "scene_id": scene_id,
         "env_id": layout["env_id"],
+        "preview_env_id": layout["preview_env_id"],
         "camera_profile": camera_profile,
         "seed": seed,
-        "status": "preview-only",
+        "status": "visual-preview",
         "broad_instruction": benchmark["broad_instruction"],
         "resolved_instruction": benchmark["resolved_instruction"],
         "objects": [
@@ -135,8 +136,8 @@ def render_scene(
             for spec in layout["objects"]
         ],
         "warning": (
-            "Scene geometry and policy-camera visibility only; task predicates and "
-            "closed-loop policy evaluation are not implemented yet."
+            "This manifest is a visual preview. Use env_id for closed-loop evaluation; "
+            "preview_env_id is limited to one step."
         ),
     }
     (scene_dir / "manifest.json").write_text(
