@@ -32,24 +32,72 @@ For each scene, camera profile, and instruction condition:
 
 ## Core metrics
 
-- end-to-end success rate;
-- ordered and unordered subtask completion rate;
+- end-to-end success rate: every required final-state predicate is true at
+  termination;
+- atomic partial-task score: completed object placements divided by required
+  object placements, so the cafeteria task has six atomic placements rather
+  than only three language clauses;
+- clause completion rate and ordered-prefix completion rate, reported
+  separately from atomic partial credit;
 - grounded-object and destination accuracy;
 - steps and wall-clock time to completion;
 - inference latency and control stalls;
 - collision/intervention/limit-clamp rate;
 - performance versus clutter level and camera profile.
 
+Do not infer partial credit from reward alone. The evaluator should expose one
+named boolean per atomic placement, plus the first step at which it became true.
+For a compound command, report both final-state completion and a latched
+ever-completed diagnostic; the end-to-end result must still fail if a later
+action undoes a required final arrangement.
+
 ## Simulator implementation status
 
-The official upstream `BimanualYAMPutEverythingInBox-v1` environment is the
-Stage 0 smoke test. The five service scenes are currently specifications. They
-need object assets, spawn distributions, collision geometry, and scene-specific
-success predicates before their numbers are meaningful. Keeping this explicit
-prevents an instruction from being evaluated against a scene that does not
-contain the referenced objects.
+The official upstream `BimanualYAMPutEverythingInBox-v1` environment remains
+the Stage 0 closed-loop smoke test. The five service scenes now have declarative
+layouts, ManiSkill-native YCB objects where suitable, procedural collision
+geometry for task-specific props, registered `Preview-v0` environments, and a
+headless three-camera renderer. They do not yet have task predicates, rollout
+termination, randomized spawn distributions, or meaningful rewards.
 
-The recommended next implementation is one parameterized ManiSkill base class
-with declarative object/target definitions, plus five registered environment
-IDs. Each relation needs its own geometric predicate (`in`, `on`, `beside`) and
-each subtask needs an independently logged completion bit.
+Render all current layouts without loading the policy:
+
+```bash
+bash scripts/render_service_scenes.sh \
+  --camera-profile d435i-wrist-raw-rigid-optimized \
+  --seed 42
+```
+
+The layout source of truth is
+`configs/benchmarks/aag_service_scene_layouts.json`; language and required
+subtasks remain in `configs/benchmarks/aag_service_scenes.json`. This separation
+keeps scene geometry independently editable while allowing tests to ensure that
+the IDs and registered preview environments stay aligned.
+
+## Evaluation implementation TODO
+
+1. Add deterministic reset distributions with collision-free rejection and log
+   every sampled object pose.
+2. Stabilize physical properties for all movable props: scale, mass, center of
+   mass, friction, restitution, and grasp-clearance envelopes.
+3. Implement object-level relations:
+   - `in`: the object support proxy lies inside the target's interior XY bounds
+     and below its rim, with low terminal velocity;
+   - `on`: the object footprint overlaps the target support region, its bottom
+     is near the support height, and it is settled;
+   - `beside`: both objects share a support surface, are outside one another,
+     and their XY separation lies in a declared interval.
+4. Expand group phrases such as “both bottles” and “the cups” into atomic
+   object predicates before scoring.
+5. Return named `subtask_complete`, `subtask_first_step`, ordered-prefix, and
+   final all-complete values in `info`; terminate successfully only when all
+   final predicates hold for a short stability window.
+6. Extend the current evaluator to save complete policy-view videos, state and
+   action traces, inference latency, safety events, and the predicate timeline.
+7. Validate one resolved atomic instruction at a time, then a resolved compound
+   instruction, then connect the broad AAG instruction resolver.
+8. Run matched-seed D405-reference versus D435i-candidate A/B trials and report
+   confidence intervals rather than a single success percentage.
+
+Until those items are complete, an image that looks plausible is a layout
+approval artifact—not evidence that MolmoAct2 can complete the task.

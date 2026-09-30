@@ -8,9 +8,10 @@ def test_benchmark_has_five_increasing_scenarios():
     assert len({item["id"] for item in items}) == 5
 
 
-def test_each_scenario_is_explicitly_not_yet_an_environment():
+def test_each_scenario_is_explicitly_preview_only():
     for item in scenarios():
-        assert item["status"] == "specification"
+        assert item["status"] == "scene-preview"
+        assert item["preview_env_id"].endswith("Preview-v0")
         assert item["broad_instruction"]
         assert item["resolved_instruction"]
         assert len(item["subtasks"]) >= 3

@@ -7,13 +7,12 @@ inference server and the official
 
 This repository is deliberately an integration layer, not a fork of the model.
 It pins the official source, validates the server/camera/action contract, adds a
-camera-profile flag, and records a five-scene AAG service-manipulation benchmark
-specification.
+camera-profile flag, and provides five reproducible AAG service-scene previews.
 
 > Status: the official `BimanualYAMPutEverythingInBox-v1` task is runnable now.
-> The five AAG scenes are benchmark specifications for the next environment
-> implementation phase; they are not silently mapped onto the wrong objects in
-> the official one-box task.
+> The five AAG layouts can also be rendered from all three policy cameras, but
+> they are **preview environments**, not policy-evaluation environments yet.
+> Their geometric success predicates and partial-credit evaluator remain TODO.
 
 ## What is known (and what is not)
 
@@ -59,7 +58,7 @@ grounded subtask at a time while keeping MolmoAct2 as the motor policy.
 cad/                             parametric D435i wrist adapter + STL/STEP
 configs/cameras/                 camera models and simulated mount poses
 configs/hardware/                physical D435i camera-server settings
-configs/benchmarks/              five AAG scene specifications
+configs/benchmarks/              five AAG task specs and preview layouts
 docs/                            architecture, benchmark, calibration notes
 scripts/                         simulation and hardware launch helpers
 src/aag_yam_sim/                 validation and evaluation CLI
@@ -205,6 +204,70 @@ other CUDA jobs, and restart the policy server after enough VRAM is free. Do
 not merely retry the client against the same failed process. This error is not
 caused by the camera profile or YCB assets.
 
+### 5. Render the five service-scene previews
+
+This step does **not** load MolmoAct2 and does not need an inference server. It
+uses the same bimanual YAM embodiment and camera-profile patching as the working
+official evaluator. Make sure the upstream YCB assets from step 2 are present,
+then run from the repository root:
+
+```bash
+bash scripts/render_service_scenes.sh \
+  --camera-profile d435i-wrist-raw-rigid-optimized \
+  --seed 42
+```
+
+To render only one layout, repeatable for scene editing:
+
+```bash
+bash scripts/render_service_scenes.sh \
+  --scene dining-table-cleanup \
+  --camera-profile d435i-wrist-raw-rigid-optimized \
+  --output-dir outputs/service_scene_previews \
+  --seed 42
+```
+
+The valid `--scene` values are `dining-table-cleanup`,
+`kitchen-dish-sorting`, `bedside-assistance`, `living-room-tidying`, and
+`cafeteria-service-station`. Each scene directory contains:
+
+```text
+human.png       external overview
+top_cam.png     exact top policy observation
+left_cam.png    exact left-wrist policy observation
+right_cam.png   exact right-wrist policy observation
+overview.png    labeled 2×2 review sheet
+manifest.json   objects, instruction, seed, profile, and preview status
+```
+
+Outputs are written under
+`outputs/service_scene_previews/<camera-profile>/<scene-id>/`. Use
+`--camera-profile molmoact2-reference` to review the original simulated D405
+wrist views instead of the optimized raw D435i candidate.
+
+The layouts deliberately use [ManiSkill-native YCB
+objects](https://maniskill.readthedocs.io/en/latest/user_guide/tutorials/custom_tasks/loading_objects.html)
+where a recognizable, graspable match exists and simple SAPIEN collision
+geometry for bins, trays, racks, books, and tissue boxes. RoboLab assets are
+not imported in this pass: [RoboLab](https://github.com/NVlabs/RoboLab) targets
+Isaac Lab/OpenUSD, so directly copying those scenes into ManiSkill/SAPIEN would
+not preserve their articulation, material, or collision contracts.
+
+Current seed-42 preview sheets:
+
+| Scene | D435i candidate policy-camera review |
+|---|---|
+| Dining-table cleanup | ![Dining-table cleanup preview](docs/assets/service-scene-previews/dining-table-cleanup.png) |
+| Kitchen dish sorting | ![Kitchen dish sorting preview](docs/assets/service-scene-previews/kitchen-dish-sorting.png) |
+| Bedside assistance | ![Bedside assistance preview](docs/assets/service-scene-previews/bedside-assistance.png) |
+| Living-room tidying | ![Living-room tidying preview](docs/assets/service-scene-previews/living-room-tidying.png) |
+| Cafeteria/service station | ![Cafeteria/service-station preview](docs/assets/service-scene-previews/cafeteria-service-station.png) |
+
+These preview IDs end in `Preview-v0` on purpose. Do not pass them to
+`scripts/run_sim.sh` yet: they currently prove asset loading, layout, and
+policy-camera visibility only. See [Benchmark design](docs/BENCHMARK.md) for
+the concrete path from these previews to closed-loop MolmoAct2 evaluation.
+
 ### RTX 5090 setup after pulling this repository
 
 On a second machine with a current clone:
@@ -327,13 +390,16 @@ aag-yam scenarios
 aag-yam scenario dining-table-cleanup
 ```
 
-| Difficulty | Scene | Broad command | Actions |
-|---:|---|---|---:|
-| 1 | Dining-table cleanup | “Clean up the dining table.” | 3 |
-| 2 | Kitchen dish sorting | “Put away the dishes.” | 3 |
-| 3 | Bedside assistance | “Clear some space on the bedside table.” | 3 |
-| 4 | Living-room tidying | “Tidy up the living room.” | 3 |
-| 5 | Cafeteria/service station | “Organize the serving area.” | 3 groups |
+| Difficulty | Scene and clutter | Broad command | Resolved command |
+|---:|---|---|---|
+| 1 | Dining table: red, blue, and green cups; white and blue plates; bowl; bottle; napkin box; bus bin; dish tray | “Clean up the dining table.” | “Place the red and blue cups in the bus bin, then place the white plate in the dish tray.” |
+| 2 | Kitchen counter: two bowls; two cups; plate; bottle; food container; dish rack; tray | “Put away the dishes.” | “Place both bowls in the dish rack, then put the cup beside the plate in the tray.” |
+| 3 | Bedside table: water bottle; mug; tissue box; snack container; mock medicine bottle; basket | “Clear some space on the bedside table.” | “Move the mug and snack container into the basket, then place the water bottle beside the tissue box.” |
+| 4 | Living-room table: toy; tissue box; cup; book; remote; storage bin; tray | “Tidy up the living room.” | “Put the toy in the storage bin, place the cup in the tray, and move the book beside the tissue box.” |
+| 5 | Service counter: two bottles; three cups; bowl; food container; serving tray; recycling bin | “Organize the serving area.” | “Put both bottles in the recycling bin, move the cups to the serving tray, and place the bowl beside the food container.” |
+
+Scenes 1–4 contain three atomic placements. Scene 5 contains three language
+clauses but six atomic placements, which matters for partial-credit scoring.
 
 See [Benchmark design](docs/BENCHMARK.md) for success metrics and the staged
 implementation plan.
