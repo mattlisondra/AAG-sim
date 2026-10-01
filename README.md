@@ -298,6 +298,12 @@ outputs/d435i-service-10episodes/<timestamp>/frames/<env-id>/ep000_left_cam.png
 outputs/d435i-service-10episodes/<timestamp>/frames/<env-id>/ep000_right_cam.png
 ```
 
+Observer frames are streamed directly into FFmpeg during each rollout rather
+than retained as uncompressed arrays. Video memory therefore stays bounded for
+long 4500-step episodes. `results.json` records each episode's `video_path` and
+`video_frames`; an MP4 is finalized at episode termination or when the evaluator
+is interrupted normally with `Ctrl+C`.
+
 The two primary reported metrics are:
 
 - `success_rate`: fraction of episodes that reach the complete final state;

@@ -16,11 +16,11 @@ from sim_eval.run_eval import (
     _capture_frame,
     _extract_input_frames,
     _save_image,
-    _save_video,
 )
 from tqdm import tqdm
 
 from .benchmark import scenario_by_env_id
+from .video import StreamingVideoWriter
 
 logger = logging.getLogger(__name__)
 
@@ -67,51 +67,59 @@ def run_episode(
     obs: dict,
     instruction: str,
     max_steps: int,
+    video_path: Path | None = None,
+    video_fps: int = 30,
 ) -> dict[str, Any]:
     total_reward = 0.0
     success = False
     max_score = 0.0
     completed_subtasks = 0
     total_subtasks = 0
-    frames: list[np.ndarray] = []
     input_frames = _extract_input_frames(obs) if isinstance(obs, dict) else {}
     final_info: dict[str, Any] = {}
     termination_reason = "max_steps"
+    video = StreamingVideoWriter(video_path, video_fps) if video_path is not None else None
 
-    frame = _capture_frame(env)
-    if frame is not None:
-        frames.append(frame)
+    try:
+        if video is not None:
+            frame = _capture_frame(env)
+            if frame is not None:
+                video.append(frame)
 
-    _step_index = 0
-    for _step_index in range(max_steps):
-        action = client.infer(obs, instruction)
-        obs, reward, terminated, truncated, info = env.step(action)
-        final_info = info
-        total_reward += _scalar(reward)
+        _step_index = 0
+        for _step_index in range(max_steps):
+            action = client.infer(obs, instruction)
+            obs, reward, terminated, truncated, info = env.step(action)
+            final_info = info
+            total_reward += _scalar(reward)
 
-        step_success = _boolean(info.get("success", False))
-        success |= step_success
-        score = info.get("partial_task_score")
-        if score is None and "n_in_box" in info and "n_total" in info:
-            score = _scalar(info["n_in_box"]) / max(_scalar(info["n_total"]), 1.0)
-        max_score = max(max_score, _scalar(score, 1.0 if step_success else 0.0))
-        completed_value = info.get("completed_subtasks", info.get("n_in_box"))
-        total_value = info.get("total_subtasks", info.get("n_total"))
-        completed_subtasks = max(
-            completed_subtasks,
-            int(_scalar(completed_value, round(max_score))),
-        )
-        total_subtasks = max(total_subtasks, int(_scalar(total_value, 0.0)))
+            step_success = _boolean(info.get("success", False))
+            success |= step_success
+            score = info.get("partial_task_score")
+            if score is None and "n_in_box" in info and "n_total" in info:
+                score = _scalar(info["n_in_box"]) / max(_scalar(info["n_total"]), 1.0)
+            max_score = max(max_score, _scalar(score, 1.0 if step_success else 0.0))
+            completed_value = info.get("completed_subtasks", info.get("n_in_box"))
+            total_value = info.get("total_subtasks", info.get("n_total"))
+            completed_subtasks = max(
+                completed_subtasks,
+                int(_scalar(completed_value, round(max_score))),
+            )
+            total_subtasks = max(total_subtasks, int(_scalar(total_value, 0.0)))
 
-        frame = _capture_frame(env)
-        if frame is not None:
-            frames.append(frame)
+            if video is not None:
+                frame = _capture_frame(env)
+                if frame is not None:
+                    video.append(frame)
 
-        terminated_value = _boolean(terminated)
-        truncated_value = _boolean(truncated)
-        if terminated_value or truncated_value:
-            termination_reason = "success" if step_success else "truncated"
-            break
+            terminated_value = _boolean(terminated)
+            truncated_value = _boolean(truncated)
+            if terminated_value or truncated_value:
+                termination_reason = "success" if step_success else "truncated"
+                break
+    finally:
+        if video is not None:
+            video.close()
 
     if success:
         max_score = 1.0
@@ -126,7 +134,8 @@ def run_episode(
         "subtask_complete": _subtask_values(final_info, "subtask_complete/"),
         "subtask_current": _subtask_values(final_info, "subtask_current/"),
         "subtask_first_step": _subtask_values(final_info, "subtask_first_step/"),
-        "frames": frames,
+        "video_path": str(video_path) if video is not None and video.frame_count else None,
+        "video_frames": video.frame_count if video is not None else 0,
         "input_frames": input_frames,
     }
 
@@ -169,7 +178,18 @@ def evaluate_task(env_id: str, client: MolmoActClientBase, config: EvalConfig) -
                     list(client.schema.camera_keys),
                 )
 
-            result = run_episode(env, client, obs, instruction, config.max_episode_steps)
+            video_path = None
+            if config.save_video and episode < config.max_videos:
+                video_path = out_dir / "videos" / env_id / f"ep{episode:03d}.mp4"
+            result = run_episode(
+                env,
+                client,
+                obs,
+                instruction,
+                config.max_episode_steps,
+                video_path=video_path,
+                video_fps=config.control_freq,
+            )
             client.reset()
             episode_result = {
                 "episode": episode,
@@ -186,6 +206,8 @@ def evaluate_task(env_id: str, client: MolmoActClientBase, config: EvalConfig) -
                 "reward": float(result["total_reward"]),
                 "steps": result["steps"],
                 "termination_reason": result["termination_reason"],
+                "video_path": result["video_path"],
+                "video_frames": result["video_frames"],
             }
             episodes.append(episode_result)
             successes.append(result["success"])
@@ -193,12 +215,6 @@ def evaluate_task(env_id: str, client: MolmoActClientBase, config: EvalConfig) -
             rewards.append(result["total_reward"])
             steps_list.append(result["steps"])
 
-            if config.save_video and episode < config.max_videos and result["frames"]:
-                _save_video(
-                    result["frames"],
-                    out_dir / "videos" / env_id / f"ep{episode:03d}.mp4",
-                    fps=config.control_freq,
-                )
             if episode < config.max_videos and result["input_frames"]:
                 for camera, frame in result["input_frames"].items():
                     _save_image(

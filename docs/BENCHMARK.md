@@ -102,6 +102,10 @@ subtasks remain in `configs/benchmarks/aag_service_scenes.json`. This separation
 keeps scene geometry independently editable while allowing tests to ensure that
 the IDs and registered preview environments stay aligned.
 
+Human-observer MP4 frames are encoded incrementally during rollout, so video
+recording uses bounded memory even at the 4500-step limit. The per-episode
+result includes the video path and number of encoded frames.
+
 ## Evaluation implementation TODO
 
 1. Add collision-rejection sampling for wider spawn distributions; the current
